@@ -407,7 +407,7 @@ TC(delete_many_individually) {
     END_TEST();
 }
 
-/* Add keys, deleet them all. */
+/* Add keys, delete them all. */
 TC(trivial_delete_all) {
     BEGIN_TEST();
     INIT();
