@@ -1,0 +1,2 @@
+#!/bin/sh
+grep "^TC" $1 | sed -e 's/ .*//' -e 's/TC(/    TESTCASE(/' -e 's/$/;/'
