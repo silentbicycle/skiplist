@@ -32,14 +32,15 @@ struct skiplist;
 typedef int (skiplist_cmp_cb)(void *keyA, void *keyB);
 
 /* Callback when iterating over the contents of the skiplist.
- * If it returns nonzero, iteration will terminate immediately.
- * UDATA is an extra void * for the callback's closure. */
+ * If it returns nonzero, iteration will terminate immediately
+ * and return that result.
+ * UDATA is an extra void * for the callback's closure/enironment. */
 typedef int (skiplist_iter_cb)(void *key, void *value, void *udata);
 
 /* Callback when freeing keys and/or values contained by the skiplist. */
 typedef void (skiplist_free_cb)(void *key, void *value, void *udata);
 
-/* Callback to print key and/or value inside skiplist_debug
+/* Callback to print KEY and/or VALUE inside skiplist_debug
  * to file F, if F is non-NULL. */
 typedef void (skiplist_fprintf_kv_cb)(FILE *f, void *key,
                                       void *value,void *udata);
@@ -62,19 +63,23 @@ void skiplist_set_seed(unsigned seed);
  * Should return between 1 and SKIPLIST_MAX_HEIGHT, inclusive.
  * Returning an illegal height is a checked error.
  *
- * For the skiplist's invariants to hold, the propability of a level
- * should be a constant proportion of the probability of the level
- * beneath it, e.g. 1 -> 1, 2 -> 1/2, 3 -> 1/4, 4 -> 1/8, etc.
+ * For the skiplist's invariants to hold, the propability of
+ * >= level N should be a constant proportion of the probability
+ * of the level beneath it, e.g. prob(>=1) -> 1, prob(>=2) -> 1/2,
+ * prob(>=3) -> 1/4, prob(>=4) -> 1/8, etc.
+ *
+ * SKIPLIST_GEN_HEIGHT can be replaced at compile-time, but
+ * defaults to a probability of 0.5 per each additional level.
  */
 unsigned int SKIPLIST_GEN_HEIGHT();
 
 /* Add a key/value pair to the skiplist. Equal keys will be kept
- * (bag functionaly). Key and/or value are allowed to be NULL,
+ * (bag functionality). KEY and/or VALUE are allowed to be NULL,
  * provided the cmp callback can handle it. Note that a NULL
  * value will not be recognized by skiplist_member.
  * If you add multiple values under the same key, they will not
  * necessarily be stored in any particular order.
- * Returns <0 on error. */
+ * Returns <0 on error, 0 on success. */
 int skiplist_add(T *sl, void *key, void *value);
 
 /* Set a key/value pair in the skiplist, replacing an existing
@@ -106,7 +111,7 @@ void skiplist_delete_all(T *sl, void *key,
  * If key or value are non-NULL, the pair is returned in them.
  * Passing in a NULL key is legal, it will be ignored.
  * Passing in a NULL value is legal, but useless.
- * Returns <0 on error, e.g. an empty skiplist. */
+ * Returns 0 on success, or <0 on error, e.g. an empty skiplist. */
 int skiplist_first(T *sl, void **key, void **value);
 int skiplist_last(T *sl, void **key, void **value);
 
@@ -124,7 +129,7 @@ int skiplist_empty(T *sl);
 
 /* Iterate over the skiplist. See the typedef comment for
  * skiplist_iter_cb for more information. */
-void skiplist_iter(T *sl, void *udata, skiplist_iter_cb *cb);
+int skiplist_iter(T *sl, void *udata, skiplist_iter_cb *cb);
 
 /* Iterate over the skiplist, beginning at KEY.
  * Returns <0 if KEY is not present. */

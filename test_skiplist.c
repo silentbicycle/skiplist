@@ -172,7 +172,7 @@ TC(fill_with_words_check_sorted) {
     udata.ok = 1;
     
     /* iter and verify they're ordered alphabetically, ascending */
-    skiplist_iter(sl, &udata, sl_count_and_check_sorted_cb);
+    A(skiplist_iter(sl, &udata, sl_count_and_check_sorted_cb) == 0);
     A(udata.ok);
     A(count == ct);
     
@@ -215,7 +215,7 @@ TC(fill_with_words_terminate_early) {
     
     /* iter and verify they're ordered alphabetically, quitting
      * at the word "onion". */
-    skiplist_iter(sl, &udata, sl_check_and_terminate_early_cb);
+    A(skiplist_iter(sl, &udata, sl_check_and_terminate_early_cb) == 1);
     A(udata.ok);
     A(count == 105);
     
@@ -246,7 +246,8 @@ TC(fill_with_words_count_from_onion) {
     
     /* iter and verify they're ordered alphabetically, starting
      * at the word "onion". */
-    skiplist_iter_from(sl, "onion", &udata, sl_count_and_check_sorted_cb);
+    A(skiplist_iter_from(sl, "onion", &udata,
+            sl_count_and_check_sorted_cb) == 0);
     A(udata.ok);
     if (verbose > 1) {
         printf("count is %d\n", count);
@@ -407,7 +408,7 @@ TC(delete_many_individually) {
     END_TEST();
 }
 
-/* Add keys, delete them all. */
+/* Add keys, deleet them all. */
 TC(trivial_delete_all) {
     BEGIN_TEST();
     INIT();

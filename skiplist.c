@@ -417,16 +417,18 @@ skiplist_count_t skiplist_count(T *sl) { A(sl); R sl->count; }
 
 int skiplist_empty(T *sl) { R (skiplist_count(sl) == 0); }
 
-static void walk_and_apply(N *cur, void *udata, skiplist_iter_cb *cb) {
+static int walk_and_apply(N *cur, void *udata, skiplist_iter_cb *cb) {
     while (!IS_SENTINEL(cur)) {
-        if (cb(cur->k, cur->v, udata) != 0) return;
+        int res = cb(cur->k, cur->v, udata);
+        if (res != 0) return res;
         cur = cur->next[0];
     }
+    return 0;
 }
 
-void skiplist_iter(T *sl, void *udata, skiplist_iter_cb *cb) {
+int skiplist_iter(T *sl, void *udata, skiplist_iter_cb *cb) {
     A(sl); A(cb);
-    walk_and_apply(sl->head->next[0], udata, cb);
+    return walk_and_apply(sl->head->next[0], udata, cb);
 }
 
 int skiplist_iter_from(T *sl, void *key,
