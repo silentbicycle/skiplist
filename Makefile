@@ -1,4 +1,4 @@
-TARGETS=	skiplist.a test_skiplist bench
+TARGETS=	libskiplist.a test_skiplist bench
 
 CC=	gcc
 #CC=	clang
@@ -26,15 +26,15 @@ all: ${TARGETS}
 test: test_skiplist
 	@./test_skiplist
 
-skiplist.a: skiplist.o
+libskiplist.a: skiplist.o
 	${MAKE_LIB} skiplist.o
 
 test_skiplist: skiplist-test.o test_alloc.o test_list.h test_words.h
 	${CC} -o test_skiplist ${CFLAGS} ${LDFLAGS} \
 	skiplist-test.o test_alloc.o test_skiplist.c
 
-bench: bench.c skiplist.a
-	${CC} -o $@ bench.c ${CFLAGS} ${BENCH_FLAGS} skiplist.a ${LDFLAGS}
+bench: bench.c libskiplist.a
+	${CC} -o $@ bench.c ${CFLAGS} ${BENCH_FLAGS} libskiplist.a ${LDFLAGS}
 
 skiplist.o: Makefile skiplist.c ${SKIPLIST_HEADERS}
 	${CC} -c -o $@ skiplist.c ${CFLAGS} 
@@ -52,6 +52,6 @@ TAGS: skiplist.c ${SKIPLIST_HEADERS}
 	etags *.[ch]
 
 clean:
-	rm -rf skiplist*.a test_skiplist *.o *.core TAGS test_list.h *.dSYM
+	rm -rf libskiplist*.a test_skiplist *.o *.core TAGS test_list.h *.dSYM
 
 distclean: clean
