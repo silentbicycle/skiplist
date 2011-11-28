@@ -34,7 +34,7 @@ test_skiplist: skiplist-test.o test_alloc.o test_list.h test_words.h
 	skiplist-test.o test_alloc.o test_skiplist.c
 
 bench: bench.c libskiplist.a
-	${CC} -o $@ bench.c ${CFLAGS} ${BENCH_FLAGS} libskiplist.a ${LDFLAGS}
+	${CC} -o $@ bench.c ${CFLAGS} ${BENCH_FLAGS} -L. -lskiplist ${LDFLAGS}
 
 skiplist.o: Makefile skiplist.c ${SKIPLIST_HEADERS}
 	${CC} -c -o $@ skiplist.c ${CFLAGS} 
