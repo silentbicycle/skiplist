@@ -4,7 +4,6 @@
 /* Abbreviations and other macros used internally. */
 
 #define A assert
-#define R return
 #define T skiplist
 
 #define TODO()                                                          \

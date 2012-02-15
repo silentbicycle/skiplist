@@ -60,16 +60,16 @@ static N *N_alloc(int height, void *key, void *value);
 
 T *skiplist_new(SKIPLIST_NEW_ARGS) {
     T *sl = SKIPLIST_MALLOC(sizeof(*sl));
-    if (sl == NULL) { LOG1("alloc fail\n"); R NULL; }
+    if (sl == NULL) { LOG1("alloc fail\n"); return NULL; }
     sl->count = 0;
     
     N *head = N_alloc(1, &SENTINEL, &SENTINEL);
-    if (head == NULL) { SKIPLIST_FREE(sl, sizeof(*sl)); R NULL; }
+    if (head == NULL) { SKIPLIST_FREE(sl, sizeof(*sl)); return NULL; }
     sl->head = head;
     
     SKIPLIST_CMP_INIT();    /* set *cmp, if not hardcoded */
     SKIPLIST_LOCK_INIT();   /* init lock, if used */
-    R sl;
+    return sl;
 }
 
 /* Allocate a node. The forward pointers are initialized to &SENTINEL.
@@ -78,11 +78,11 @@ static N *N_alloc(int height, void *key, void *value) {
     A(height > 0);
     A(height <= SKIPLIST_MAX_HEIGHT);
     N *n = SKIPLIST_MALLOC(sizeof(*n) + height*sizeof(N *));
-    if (n == NULL) { fprintf(stderr, "alloc fail\n"); R NULL; }
+    if (n == NULL) { fprintf(stderr, "alloc fail\n"); return NULL; }
     n->h = height; n->k = key; n->v = value;
     LOG2("allocated %d-level node at %p\n", height, n);
     DO(height, n->next[i] = &SENTINEL);
-    R n;
+    return n;
 }
 
 /* Free a node. If necessary, everything it references should be
@@ -104,7 +104,7 @@ unsigned int SKIPLIST_GEN_HEIGHT() {
      * default probability of 50% for each additional level
      * increase is used. */
     for (int bit=0; r & (2 << bit); bit++) h++;
-    R h > SKIPLIST_MAX_HEIGHT ? SKIPLIST_MAX_HEIGHT : h;
+    return h > SKIPLIST_MAX_HEIGHT ? SKIPLIST_MAX_HEIGHT : h;
 }
 #endif
 
@@ -142,7 +142,7 @@ static int grow_head(T *sl, N *nn) {
     N *new_head = N_alloc(nn->h, &SENTINEL, &SENTINEL);
     if (new_head == NULL) {
         fprintf(stderr, "alloc fail\n");
-        R -1;
+        return -1;
     }
     DO(old_head->h, new_head->next[i] = old_head->next[i]);
     for (int i=old_head->h; i<new_head->h; i++) {
@@ -151,7 +151,7 @@ static int grow_head(T *sl, N *nn) {
     }
     sl->head = new_head;
     N_free(old_head);
-    R 0;
+    return 0;
 }
 
 static int add_or_set(T *sl, int try_replace,
@@ -171,7 +171,7 @@ static int add_or_set(T *sl, int try_replace,
             if (res == 0) { /* key exists, replace value */
                 if (old) *old = next->v;
                 next->v = value;
-                R 0;
+                return 0;
             } else {        /* not found */
                 if (old) *old = NULL;
             }
@@ -180,10 +180,10 @@ static int add_or_set(T *sl, int try_replace,
     
     int new_height = SKIPLIST_GEN_HEIGHT();
     N *nn = N_alloc(new_height, key, value); /* new node */
-    if (nn == NULL) R -1;
+    if (nn == NULL) return -1;
     
     if (new_height > cur_height) {
-        if (grow_head(sl, nn) < 0) R -1;
+        if (grow_head(sl, nn) < 0) return -1;
         DO(cur_height, if (prevs[i] == /* old */ head)
                            prevs[i] = sl->head);
         head = sl->head;
@@ -198,15 +198,15 @@ static int add_or_set(T *sl, int try_replace,
         prevs[i]->next[i] = nn;
     }
     sl->count++;
-    R 0;
+    return 0;
 }
 
 int skiplist_add(T *sl, void *key, void *value) {
-    R add_or_set(sl, 0, key, value, NULL);
+    return add_or_set(sl, 0, key, value, NULL);
 }
 
 int skiplist_set(T *sl, void *key, void *value, void **old) {
-    R add_or_set(sl, 1, key, value, old);
+    return add_or_set(sl, 1, key, value, old);
 }
 
 void *delete_one_or_all(T *sl, void *key,
@@ -219,14 +219,14 @@ void *delete_one_or_all(T *sl, void *key,
     
     N *doomed = prevs[0]->next[0];
     if (IS_SENTINEL(doomed) || 0 != SKIPLIST_CMP(doomed->k, key))
-        R NULL;                 /* not found */
+        return NULL;                 /* not found */
     
     if (cb == NULL) {           /* delete one w/ key */
         DO(doomed->h, prevs[i]->next[i]=doomed->next[i]);
         void *res = doomed->v;
         N_free(doomed);
         sl->count--;
-        R res;
+        return res;
     } else {                    /* delete all w/ key */
         int res = 0;
         int tdh = 0;            /* tallest doomed height */
@@ -272,7 +272,7 @@ void *delete_one_or_all(T *sl, void *key,
         DO(tdh,
             LOG2("setting prevs[%d]->next[%d] to %p\n", i, i, nexts[i]);
             prevs[i]->next[i] = nexts[i]);
-        R NULL;
+        return NULL;
     }
 }
 
@@ -305,33 +305,33 @@ static N *get_first_eq_node(T *sl, void *key) {
             /* Descend when == to make sure it's the FIRST match. */
             if (lvl == 0)
                 {
-                    if (res == 0) R next; /* found */
-                    R NULL;               /* not found */
+                    if (res == 0) return next; /* found */
+                    return NULL;               /* not found */
                 }
             lvl--;
         }
     } while (lvl >= 0);
     
-    R NULL;                 /* not found */
+    return NULL;                 /* not found */
 }
 
 void *skiplist_get(T *sl, void *key) {
     N *n = get_first_eq_node(sl, key);
-    R n ? n->v : NULL;
+    return n ? n->v : NULL;
 }
 
 int skiplist_member(T *sl, void *key) {
     void *v = skiplist_get(sl, key);
-    R v != NULL;
+    return v != NULL;
 }
 
 int skiplist_first(T *sl, void **key, void **value) {
     A(sl);
     N *first = sl->head->next[0];
-    if (IS_SENTINEL(first)) R -1; /* empty */
+    if (IS_SENTINEL(first)) return -1; /* empty */
     if (key) *key = first->k;
     if (value) *value = first->v;
-    R 0;
+    return 0;
 }
 
 int skiplist_last(T *sl, void **key, void **value) {
@@ -339,7 +339,7 @@ int skiplist_last(T *sl, void **key, void **value) {
     N *head = sl->head;
     int lvl = head->h - 1;
     N *cur = head->next[lvl];
-    if (IS_SENTINEL(cur)) R -1; /* empty */
+    if (IS_SENTINEL(cur)) return -1; /* empty */
     do {
         N *next = cur->next[lvl];
         if (IS_SENTINEL(next)) {
@@ -353,7 +353,7 @@ int skiplist_last(T *sl, void **key, void **value) {
     A(IS_SENTINEL(cur->next[0]));
     if (key) *key = cur->k;
     if (value) *value = cur->v;
-    R 0;
+    return 0;
 }
 
 int skiplist_pop_first(T *sl, void **key, void **value) {
@@ -363,14 +363,14 @@ int skiplist_pop_first(T *sl, void **key, void **value) {
     N *first = head->next[0];
     A(first);
     height = first->h;
-    if (IS_SENTINEL(first)) R -1; /* empty */
+    if (IS_SENTINEL(first)) return -1; /* empty */
     if (key) *key = first->k;
     if (value) *value = first->v;
     sl->count--;
 
     DO(height, head->next[i] = first->next[i]);
     N_free(first);
-    R 0;
+    return 0;
 }
 
 int skiplist_pop_last(T *sl, void **key, void **value) {
@@ -379,7 +379,7 @@ int skiplist_pop_last(T *sl, void **key, void **value) {
     N *prevs[head->h];
     int lvl = head->h - 1;
     N *cur = head;
-    if (sl->count == 0) R -1; /* empty */
+    if (sl->count == 0) return -1; /* empty */
     
     /* Get all the nodes that are (node -> last -> &SENTINEL) so
      * node can skip directly to the sentinel. */
@@ -410,12 +410,12 @@ int skiplist_pop_last(T *sl, void **key, void **value) {
 
     A(!IS_SENTINEL(cur));
     N_free(cur);
-    R 0;
+    return 0;
 }
 
-skiplist_count_t skiplist_count(T *sl) { A(sl); R sl->count; }
+skiplist_count_t skiplist_count(T *sl) { A(sl); return sl->count; }
 
-int skiplist_empty(T *sl) { R (skiplist_count(sl) == 0); }
+int skiplist_empty(T *sl) { return (skiplist_count(sl) == 0); }
 
 static int walk_and_apply(N *cur, void *udata, skiplist_iter_cb *cb) {
     while (!IS_SENTINEL(cur)) {
@@ -436,9 +436,9 @@ int skiplist_iter_from(T *sl, void *key,
     A(sl); A(cb);
     N *cur = get_first_eq_node(sl, key);
     LOG2("first node is %p\n", cur);
-    if (cur == NULL) R -1;
+    if (cur == NULL) return -1;
     walk_and_apply(cur, udata, cb);
-    R 0;
+    return 0;
 }
 
 skiplist_count_t skiplist_clear(T *sl, void *udata, skiplist_free_cb *cb) {
@@ -453,7 +453,7 @@ skiplist_count_t skiplist_clear(T *sl, void *udata, skiplist_free_cb *cb) {
         ct++;
     }
     DO(sl->head->h, sl->head->next[i] = &SENTINEL);
-    R ct;
+    return ct;
 }
 
 skiplist_count_t skiplist_free(T *sl, void *udata, skiplist_free_cb *cb) {
@@ -461,7 +461,7 @@ skiplist_count_t skiplist_free(T *sl, void *udata, skiplist_free_cb *cb) {
     skiplist_count_t ct = skiplist_clear(sl, udata, cb);
     N_free(sl->head);
     SKIPLIST_FREE(sl, sizeof(*sl));
-    R ct;
+    return ct;
 }
 
 void skiplist_debug(T *sl, FILE *f,
