@@ -18,7 +18,7 @@
  * Skiplists have reasonably good performance in a multithreaded
  * system, since most writes tend to be very localized.
  * 
- * NOTE: Thread-safe behavior is not yet implemented.. */
+ * NOTE: Thread-safe behavior is not yet implemented. */
 #ifndef SKIPLIST_USE_LOCK
 #define SKIPLIST_USE_LOCK 0
 #endif
