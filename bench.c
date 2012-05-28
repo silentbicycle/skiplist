@@ -13,27 +13,83 @@ typedef struct skiplist skiplist;
     clock_t timer_##name = clock();             \
     assert(timer_##name != -1);
 
-#define CMP_TIME(label, n1, n2)                         \
-    {                                                   \
-    clock_t delta = timer_##n2 - timer_##n1;            \
-    fprintf(stdout, "%-40s %lu ticks (%.3f secs)\n",    \
-        label, (unsigned long) delta, delta / (1.0 * CLOCKS_PER_SEC));   \
+#define CMP_TIME(label, n1, n2)                                          \
+    {                                                                    \
+    clock_t delta = timer_##n2 - timer_##n1;                             \
+    double dsec = delta / (1.0 * CLOCKS_PER_SEC);                        \
+    fprintf(stdout, "%-30s %8lu ticks (%1.3f sec, %12.3f ops/sec)\n",    \
+        label, (unsigned long) delta, dsec, lim / dsec);                 \
     }
 
 #define TDIFF() CMP_TIME(__FUNCTION__, pre, post)
+#define DEF_LIM 100000
 
 static const int largeish_prime = 7919;
+static long lim = DEF_LIM;
 
 static int intptr_cmp(void *v1, void *v2) {
     intptr_t a = (intptr_t) v1, b = (intptr_t) v2;
     return a < b ? -1 : a > b ? 1 : 0;
 }
 
+/* Measure insertions. */
+static void ins() {
+    TIME(pre);
+    skiplist *sl = skiplist_new(intptr_cmp);
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+/* Measure getting existing values (successful lookup). */
+static void get() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = (i * largeish_prime) % lim;
+        intptr_t v = (intptr_t) skiplist_get(sl, (void *) k);
+        if (0) printf("%lu %lu\n", k, v);
+        assert(v == k);
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+/* Measure getting _nonexistent_ values (lookup failure). */
+static void get_nonexistent() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = (i * largeish_prime) + lim;
+        intptr_t v = (intptr_t) skiplist_get(sl, (void *) k);
+        assert(v == 0);
+        if (0) printf("%lu %lu\n", k, v);
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
 /* Measure getting existing values (successful lookup). */
 static void ins_and_get() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -46,16 +102,15 @@ static void ins_and_get() {
         assert(v == k);
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 /* Measure getting _nonexistent_ values (lookup failure). */
 static void ins_and_get_nonexistent() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -68,30 +123,42 @@ static void ins_and_get_nonexistent() {
         if (0) printf("%lu %lu\n", k, v);
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_count() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         assert(skiplist_count(sl) == i);
         skiplist_add(sl, (void *) i, (void *) i);
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+static void set() {
+    TIME(pre);
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = i % (lim / 2);
+        skiplist_set(sl, (void *) k, (void *) k, NULL);
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void set_and_get() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         intptr_t k = i % (lim / 2);
@@ -105,15 +172,34 @@ static void set_and_get() {
         assert(v == k);
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+static void delete() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = (i * largeish_prime) % lim;
+        intptr_t v = (intptr_t) skiplist_delete(sl, (void *) k);
+        if (0) printf("%lu %lu\n", k, v);
+        assert(v == k);
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_delete() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -126,15 +212,34 @@ static void ins_and_delete() {
         assert(v == k);
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+static void delete_nonexistent() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = (i * largeish_prime) + lim;
+        intptr_t v = (intptr_t) skiplist_delete(sl, (void *) k);
+        if (0) printf("%lu %lu\n", k, v);
+        assert(v == 0);
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_delete_nonexistent() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -147,15 +252,14 @@ static void ins_and_delete_nonexistent() {
         assert(v == 0);
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_pop_first() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -166,17 +270,17 @@ static void ins_and_pop_first() {
         int res = skiplist_pop_first(sl, (void *) &k, (void *) &v);
         assert(res >= 0);
         assert(v == k);
+        (void) res;
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_pop_last() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -187,17 +291,17 @@ static void ins_and_pop_last() {
         int res = skiplist_pop_last(sl, (void *) &k, (void *) &v);
         assert(res >= 0);
         assert(v == k);
+        (void) res;
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_member() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -207,17 +311,17 @@ static void ins_and_member() {
         int mem = skiplist_member(sl, (void *) i) == 1;
         /* fprintf(stderr, "%lu: %d\n", i, mem); */
         assert(mem);
+        (void) mem;
     }
 
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_clear() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -238,7 +342,6 @@ static int sum_cb(void *k, void *v, void *ud) {
 static void ins_and_sum() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const int lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -247,15 +350,14 @@ static void ins_and_sum() {
     intptr_t total = 0;
     skiplist_iter(sl, &total, sum_cb);
     if (0) fprintf(stderr, "sum: %lu\n", total);
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_sum_partway() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
-    const intptr_t lim = 100000;
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -264,13 +366,27 @@ static void ins_and_sum_partway() {
     intptr_t total = 0;
     skiplist_iter_from(sl, (void *) (lim / 2), &total, sum_cb);
     if (0) fprintf(stderr, "sum: %lu\n", total);
-    skiplist_free(sl, NULL, NULL);
     TIME(post);
     TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 int main(int argc, char **argv) {
+    if (argc > 1) {
+        lim = atol(argv[1]);
+        if (lim <= 1) { printf("Bad limit"); exit(1); }
+    } else {
+        lim = DEF_LIM;
+    }
+
+    fprintf(stdout, "%lu iterations (run as `bench INT` to set):\n----\n", lim);
     TIME(pre);
+    ins();
+    get();
+    get_nonexistent();
+    set();
+    delete();
+    delete_nonexistent();
     ins_and_get();
     ins_and_get_nonexistent();
     ins_and_count();
@@ -286,7 +402,10 @@ int main(int argc, char **argv) {
 
     TIME(post);
     fprintf(stdout, "----\n");
-    CMP_TIME("total", pre, post);
+    clock_t delta = timer_post - timer_pre;
+    double dsec = delta / (1.0 * CLOCKS_PER_SEC);
+    fprintf(stdout, "%-40s %lu ticks (%.3f sec)\n",
+        "total", (unsigned long) delta, dsec);
 
     return 0;
 }
