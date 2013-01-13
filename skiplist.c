@@ -19,6 +19,10 @@
 #include <unistd.h>
 #include <assert.h>
 
+#if SKIPLIST_USE_LOCK
+#include <pthread.h>
+#endif
+
 #include "skiplist_config.h"
 #include "skiplist.h"
 #include "skiplist_macros_internal.h"
@@ -103,7 +107,7 @@ unsigned int SKIPLIST_GEN_HEIGHT() {
      * it should be adequate to only call random() once if the
      * default probability of 50% for each additional level
      * increase is used. */
-    for (int bit=0; r & (2 << bit); bit++) h++;
+    for (int bit=0; r & (1 << bit); bit++) h++;
     return h > SKIPLIST_MAX_HEIGHT ? SKIPLIST_MAX_HEIGHT : h;
 }
 #endif
@@ -209,8 +213,8 @@ int skiplist_set(T *sl, void *key, void *value, void **old) {
     return add_or_set(sl, 1, key, value, old);
 }
 
-void *delete_one_or_all(T *sl, void *key,
-                        void *udata, skiplist_free_cb *cb) {
+static void *delete_one_or_all(T *sl, void *key,
+                               void *udata, skiplist_free_cb *cb) {
     A(sl);
     N *head = sl->head;
     int cur_height = head->h;
@@ -303,11 +307,10 @@ static N *get_first_eq_node(T *sl, void *key) {
             cur = next;
         } else if (res >= 0) { /* next->key >= key, descend */
             /* Descend when == to make sure it's the FIRST match. */
-            if (lvl == 0)
-                {
-                    if (res == 0) return next; /* found */
-                    return NULL;               /* not found */
-                }
+            if (lvl == 0) {
+                if (res == 0) return next; /* found */
+                return NULL;               /* not found */
+            }
             lvl--;
         }
     } while (lvl >= 0);
