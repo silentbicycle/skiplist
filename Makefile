@@ -1,6 +1,6 @@
 TARGETS=	libskiplist.a test_skiplist bench
 
-CC=	gcc
+#CC=	gcc
 #CC=	clang
 
 WARN=	-Wall -Wshadow -Wuninitialized
