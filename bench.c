@@ -18,7 +18,7 @@ typedef struct skiplist skiplist;
     clock_t delta = timer_##n2 - timer_##n1;                             \
     double dsec = delta / (1.0 * CLOCKS_PER_SEC);                        \
     fprintf(stdout, "%-30s %8lu ticks (%1.3f sec, %12.3f ops/sec)\n",    \
-        label, (unsigned long) delta, dsec, lim / dsec);                 \
+        label, (unsigned long) delta, dsec, (lim / dsec)/1000.0);        \
     }
 
 #define TDIFF() CMP_TIME(__FUNCTION__, pre, post)
@@ -299,6 +299,48 @@ static void ins_and_pop_last() {
     skiplist_free(sl, NULL, NULL);
 }
 
+static void pop_first() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = 0, v = 0;
+        int res = skiplist_pop_first(sl, (void *) &k, (void *) &v);
+        assert(res >= 0);
+        assert(v == k);
+        (void) res;
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+static void pop_last() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    for (intptr_t i=0; i < lim; i++) {
+        intptr_t k = 0, v = 0;
+        int res = skiplist_pop_last(sl, (void *) &k, (void *) &v);
+        assert(res >= 0);
+        assert(v == k);
+        (void) res;
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
 static void ins_and_member() {
     TIME(pre);
     skiplist *sl = skiplist_new(intptr_cmp);
@@ -307,6 +349,26 @@ static void ins_and_member() {
         skiplist_add(sl, (void *) i, (void *) i);
     }
 
+    for (intptr_t i=1; i < lim; i++) {
+        int mem = skiplist_member(sl, (void *) i) == 1;
+        /* fprintf(stderr, "%lu: %d\n", i, mem); */
+        assert(mem);
+        (void) mem;
+    }
+
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
+}
+
+static void member() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
     for (intptr_t i=1; i < lim; i++) {
         int mem = skiplist_member(sl, (void *) i) == 1;
         /* fprintf(stderr, "%lu: %d\n", i, mem); */
@@ -337,6 +399,22 @@ static int sum_cb(void *k, void *v, void *ud) {
     intptr_t *p = (intptr_t *) ud;
     *p += (intptr_t) k;
     return 0;
+}
+
+static void sum() {
+    skiplist *sl = skiplist_new(intptr_cmp);
+
+    for (intptr_t i=0; i < lim; i++) {
+        skiplist_add(sl, (void *) i, (void *) i);
+    }
+
+    TIME(pre);
+    intptr_t total = 0;
+    skiplist_iter(sl, &total, sum_cb);
+    if (0) fprintf(stderr, "sum: %lu\n", total);
+    TIME(post);
+    TDIFF();
+    skiplist_free(sl, NULL, NULL);
 }
 
 static void ins_and_sum() {
@@ -393,10 +471,14 @@ int main(int argc, char **argv) {
     set_and_get();
     ins_and_delete();
     ins_and_delete_nonexistent();
+    pop_first();
+    pop_last();
     ins_and_pop_first();
     ins_and_pop_last();
+    member();
     ins_and_member();
     ins_and_clear();
+    sum();
     ins_and_sum();
     ins_and_sum_partway();
 
