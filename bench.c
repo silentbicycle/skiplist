@@ -194,7 +194,8 @@ static void delete(void) {
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
         intptr_t k = (i * largeish_prime) % lim;
-        intptr_t v = (intptr_t) skiplist_delete(sl, (void *) k);
+        intptr_t v = 0;
+        skiplist_delete(sl, (void *) k, (void **)&v);
         if (0) { printf("%lu %lu\n", k, v); }
         assert(v == k);
     }
@@ -214,7 +215,8 @@ static void ins_and_delete(void) {
 
     for (intptr_t i=0; i < lim; i++) {
         intptr_t k = (i * largeish_prime) % lim;
-        intptr_t v = (intptr_t) skiplist_delete(sl, (void *) k);
+        intptr_t v = 0;
+        skiplist_delete(sl, (void *) k, (void **)&v);
         if (0) { printf("%lu %lu\n", k, v); }
         assert(v == k);
     }
@@ -234,7 +236,8 @@ static void delete_nonexistent(void) {
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
         intptr_t k = (i * largeish_prime) + lim;
-        intptr_t v = (intptr_t) skiplist_delete(sl, (void *) k);
+        intptr_t v = 0;
+        skiplist_delete(sl, (void *) k, (void **)&v);
         if (0) { printf("%lu %lu\n", k, v); }
         assert(v == 0);
     }
@@ -254,7 +257,8 @@ static void ins_and_delete_nonexistent(void) {
 
     for (intptr_t i=0; i < lim; i++) {
         intptr_t k = (i * largeish_prime) + lim;
-        intptr_t v = (intptr_t) skiplist_delete(sl, (void *) k);
+        intptr_t v = 0;
+        skiplist_delete(sl, (void *) k, (void **)&v);
         if (0) { printf("%lu %lu\n", k, v); }
         assert(v == 0);
     }
@@ -404,6 +408,7 @@ static void ins_and_clear(void) {
 }
 
 static int sum_cb(void *k, void *v, void *ud) {
+    (void)v;
     intptr_t *p = (intptr_t *) ud;
     *p += (intptr_t) k;
     return 0;
@@ -418,7 +423,7 @@ static void sum(void) {
 
     TIME(pre);
     intptr_t total = 0;
-    skiplist_iter(sl, &total, sum_cb);
+    skiplist_iter(sl, sum_cb, &total);
     if (0) { fprintf(stderr, "sum: %lu\n", total); }
     TIME(post);
 
@@ -435,7 +440,7 @@ static void ins_and_sum(void) {
     }
 
     intptr_t total = 0;
-    skiplist_iter(sl, &total, sum_cb);
+    skiplist_iter(sl, sum_cb, &total);
     if (0) { fprintf(stderr, "sum: %lu\n", total); }
     TIME(post);
 
@@ -452,7 +457,7 @@ static void ins_and_sum_partway(void) {
     }
 
     intptr_t total = 0;
-    skiplist_iter_from(sl, (void *) (lim / 2), &total, sum_cb);
+    skiplist_iter_from(sl, (void *) (lim / 2), sum_cb, &total);
     if (0) { fprintf(stderr, "sum: %lu\n", total); }
     TIME(post);
 

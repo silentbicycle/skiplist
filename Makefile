@@ -1,13 +1,11 @@
-PROJECT=skiplist
+PROJECT=	skiplist
 
 TARGETS=	lib${PROJECT}.a test_${PROJECT} bench
 
 WARN=		-Wall -Wshadow -Wuninitialized \
 		-Wmissing-declarations \
 		-Wmissing-prototypes \
-		-Wno-unused-parameter
-
-# -pedantic -Wextra
+		-pedantic -Wextra
 
 CFLAGS+=	${WARN} -std=c99
 CFLAGS+=	-O3
@@ -36,17 +34,19 @@ benchmark: bench
 libskiplist.a: skiplist.o
 	${MAKE_LIB} skiplist.o
 
-test_skiplist: skiplist-test.o test_alloc.o test_words.h
+test_skiplist: skiplist-test.o test_alloc.o test_skiplist.o test_words.h
 	${CC} -o test_skiplist ${CFLAGS} ${LDFLAGS} \
-	skiplist-test.o test_alloc.o test_skiplist.c
+	skiplist-test.o test_alloc.o test_skiplist.o
 
 bench: bench.c libskiplist.a
 	${CC} -o $@ bench.c ${CFLAGS} ${BENCH_FLAGS} -L. -lskiplist ${LDFLAGS}
 
-skiplist.o: Makefile skiplist.c ${SKIPLIST_HEADERS}
+*.o: Makefile ${SKIPLIST_HEADERS}
+
+skiplist.o: skiplist.c
 	${CC} -c -o $@ skiplist.c ${CFLAGS} 
 
-skiplist-test.o: Makefile skiplist.c ${SKIPLIST_HEADERS}
+skiplist-test.o: skiplist.c test_config.h ${SKIPLIST_HEADERS}
 	${CC} -c -o $@ -DSKIPLIST_LOCAL_INCLUDE=\"test_config.h\" \
 	skiplist.c ${CFLAGS}
 
@@ -56,21 +56,19 @@ TAGS: skiplist.c ${SKIPLIST_HEADERS}
 	etags *.[ch]
 
 clean:
-	rm -rf libskiplist*.a test_skiplist *.o *.core TAGS *.dSYM
+	rm -rf libskiplist*.a test_skiplist bench *.o *.core TAGS *.dSYM
 
 # Installation
 PREFIX ?=	/usr/local
 INSTALL ?=	install
 RM ?=		rm
-MAN_DEST ?=	${PREFIX}/share/man
 
-install:
+install: lib${PROJECT}.a ${PROJECT}.h
 	${INSTALL} -c lib${PROJECT}.a ${PREFIX}/lib
 	${INSTALL} -c ${PROJECT}.h ${PREFIX}/include
-#	${INSTALL} -c man/${PROJECT}.1 ${MAN_DEST}/man1/
 
 uninstall:
-	${RM} -f ${PREFIX}/bin/${PROJECT}
-#	${RM} -f ${MAN_DEST}/man1/${PROJECT}.1
+	${RM} -f ${PREFIX}/lib/lib${PROJECT}.a
+	${RM} -f ${PREFIX}/include/${PROJECT}.h
 
 distclean: clean

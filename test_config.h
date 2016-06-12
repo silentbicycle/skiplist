@@ -9,4 +9,6 @@
 #define SKIPLIST_REALLOC(p, sz) test_realloc(p, sz)
 #define SKIPLIST_FREE(p, sz) test_free(p, sz)
 
+#define SKIPLIST_DEBUG 1
+
 #endif

@@ -3,12 +3,9 @@
 
 /* Abbreviations and other macros used internally. */
 
-#define A assert
-
-#define TODO()                                                          \
-        { fprintf(stderr, "TODO: %s at %u\n", "foo", __LINE__);         \
-                assert(0);                                              \
-        }
+#if SKIPLIST_LOG_LEVEL > 0
+#include <stdio.h>
+#endif
 
 #define LOG(lvl, ...)                                                   \
         do {                                                            \
@@ -18,9 +15,6 @@
 
 #define LOG1(...) LOG(1, __VA_ARGS__)
 #define LOG2(...) LOG(2, __VA_ARGS__)
-
-#define CALL()                                                          \
-        do { fprintf(stderr, " @ %s:%d\n", __FUNCTION__, __LINE__); } while (0) 
 
 #define DO(count, block)                                \
         { for(int i=0; i<count; i++) { block; } }

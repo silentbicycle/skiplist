@@ -2,6 +2,7 @@ test_list.h
 test_skiplist
 *.o
 *.a
+*.dSYM
 gmon.out
 TODO
 bench

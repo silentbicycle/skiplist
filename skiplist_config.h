@@ -14,15 +14,15 @@
 #define SKIPLIST_MAX_HEIGHT 28
 #endif
 
-/* Type for skiplist count, can be made smaller to save space
- * (depending on platforms' alignment restrictions).
- * Must be signed; negative counts are used to indicate errors. */
-typedef long skiplist_count_t;
-
 /* Level for debugging logs.
  * 0 = no logging, 1 = debug, 2 = the firehose. */
 #ifndef SKIPLIST_LOG_LEVEL
 #define SKIPLIST_LOG_LEVEL 0
+#endif
+
+/* Include skiplist debugging function? */
+#ifndef SKIPLIST_DEBUG
+#define SKIPLIST_DEBUG 0
 #endif
 
 /* Allow swapping out the memory allocation functions. */
