@@ -1,6 +1,6 @@
 PROJECT=skiplist
 
-TARGETS=	lib${PROJECT}.a test_${PROJECT} bench
+TARGETS=	lib${PROJECT}.a test_${PROJECT} #bench
 
 WARN=		-Wall -Wshadow -Wuninitialized \
 		-Wmissing-declarations \
@@ -33,7 +33,7 @@ test: test_skiplist
 libskiplist.a: skiplist.o
 	${MAKE_LIB} skiplist.o
 
-test_skiplist: skiplist-test.o test_alloc.o test_list.h test_words.h
+test_skiplist: skiplist-test.o test_alloc.o test_words.h
 	${CC} -o test_skiplist ${CFLAGS} ${LDFLAGS} \
 	skiplist-test.o test_alloc.o test_skiplist.c
 
@@ -49,14 +49,11 @@ skiplist-test.o: Makefile skiplist.c ${SKIPLIST_HEADERS}
 
 test_alloc.o: test_alloc.c
 
-test_list.h: test_skiplist.c
-	./gen_tests test_skiplist.c > $@
-
 TAGS: skiplist.c ${SKIPLIST_HEADERS}
 	etags *.[ch]
 
 clean:
-	rm -rf libskiplist*.a test_skiplist *.o *.core TAGS test_list.h *.dSYM
+	rm -rf libskiplist*.a test_skiplist *.o *.core TAGS *.dSYM
 
 # Installation
 PREFIX ?=	/usr/local

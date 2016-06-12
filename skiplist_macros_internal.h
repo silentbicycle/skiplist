@@ -4,7 +4,6 @@
 /* Abbreviations and other macros used internally. */
 
 #define A assert
-#define T skiplist
 
 #define TODO()                                                          \
         { fprintf(stderr, "TODO: %s at %u\n", "foo", __LINE__);         \

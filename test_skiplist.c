@@ -7,19 +7,11 @@
 #include <assert.h>
 
 #include "skiplist.h"
-#include "minunit.h"
+#include "greatest.h"
 #include "test_alloc.h"
 #include "test_config.h"
 
-#define TC(name) static char *name()
-#define A(t) mu_assert(#t, t)
-#define R return
-
-int tests_run = 0;
-static int verbose = 1;
 static long global_seed = 23;
-
-typedef struct skiplist SL;
 
 static int sl_strcmp(void *a, void *b) {
     return strcmp((char *) a, (char *) b);
@@ -33,6 +25,15 @@ static int sl_longcmp(void *la, void *lb) {
     return res;
 }
 
+static void setup(void *udata) {
+    (void)udata;
+    test_reset();
+}
+
+static void teardown(void *udata) {
+    (void)udata;
+    assert(test_check_for_leaks());
+}
 
 /*************/
 /* Test data */
@@ -47,43 +48,34 @@ const char *wordlist[] = {
 /* Tests */
 /*********/
 
-#define BEGIN_TEST() test_reset()
-#define END_TEST() A(test_check_for_leaks()); R NULL
-
-#define INIT() SL *sl = skiplist_new(sl_strcmp); A(sl)
-#define FREE_NN() skiplist_free(sl, NULL, NULL)
-
-TC(init) {
-    BEGIN_TEST();
-    INIT();
-    A(sl);
-    FREE_NN();
-    END_TEST();
+TEST init(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(sl);
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Adding one word should succeed. */
-TC(add_one_word) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_add(sl, "foo", "bar") >= 0);
-    FREE_NN();
-    END_TEST();
+TEST add_one_word(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_add(sl, "foo", "bar"));
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* This is a quick and dirty test that (for severaral random seeds)
  * the expectation for the distribution of levels generally holds.
  * This could be replaced by a more formal statistical analysis, and
  * should also be modified if the user supplies their own function. */
-TC(level_statistical_distribution) {
-    BEGIN_TEST();
+TEST level_statistical_distribution(void) {
     int counts[SKIPLIST_MAX_HEIGHT];
-    for(int i=0; i<SKIPLIST_MAX_HEIGHT; i++) counts[i] = 0;
-    for (long lseed=1; lseed < 1000; lseed++) {
-        int counted=0, in_bounds = 0;
-        for (long trials=0; trials < 100000; trials++)
+    for(int i = 0; i < SKIPLIST_MAX_HEIGHT; i++) counts[i] = 0;
+    for (long lseed = 1; lseed < 1000; lseed++) {
+        int counted = 0, in_bounds = 0;
+        for (long trials = 0; trials < 10000; trials++)
             counts[SKIPLIST_GEN_HEIGHT()]++;
 
-        for(int i=1; i<SKIPLIST_MAX_HEIGHT; i++) {
+        for(int i = 1; i < SKIPLIST_MAX_HEIGHT; i++) {
             if (counts[i - 1] != 0 && counts[i] != 0) {
                 counted++;
                 double ratio = counts[i] / (1.0 * counts[i - 1]);
@@ -93,11 +85,13 @@ TC(level_statistical_distribution) {
                     in_bounds--;
             }
         }
-        if (0) printf("counted is %d, in_bounds is %d\n", counted, in_bounds);
-        A(in_bounds > counted/4);
+        if (0) {
+            printf("counted is %d, in_bounds is %d\n", counted, in_bounds);
+        }
+        ASSERT(in_bounds > counted/4);
     }
 
-    END_TEST();
+    PASS();
     srandom(global_seed);
 }
 
@@ -113,23 +107,22 @@ static void print_intptr_cb(FILE *f, void *k, void *v, void *ud) {
 
 /* Add a bunch of words to a skiplist and check that the count
  * remains correct. */
-TC(fill_with_words) {
-    BEGIN_TEST();
-    INIT();
+TEST fill_with_words(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
     char **w = NULL;
     long ct = 0;
     for (w = (char **)wordlist; *w; w++) {
-        if (verbose > 1) printf("adding word '%s'\n", *w);
-        A(skiplist_add(sl, *w, *w) >= 0);
+        ASSERT(skiplist_add(sl, *w, *w));
         ct++;
-        A(skiplist_count(sl) == ct);
+        ASSERT(skiplist_count(sl) == ct);
     }
 
-    if (verbose > 1)
+    if (greatest_get_verbosity() > 1) {
         skiplist_debug(sl, stderr, NULL, print_key_cb);
-    
-    FREE_NN();
-    END_TEST();
+    }
+
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 typedef struct cb_udata {
@@ -143,41 +136,43 @@ static int sl_count_and_check_sorted_cb(void *k, void *v, void *udata) {
     char *word = (char *) k;
     if (0) fprintf(stderr, "ct=%d, prev='%s', cur='%s'\n",
         *ud->count, ud->prev, word);
-    
+
     /* If set, check that prev is <= current word. */
-    if (ud->prev && strcmp(ud->prev, word) > 0) { ud->ok = 0; R 1; }
-    
+    if (ud->prev && strcmp(ud->prev, word) > 0) {
+        ud->ok = 0;
+        return 1;
+    }
+
     ud->prev = (char *) k;
     (*ud->count)++;
-    R 0;
+    return 0;
 }
 
 /* Add words and check that they are automatically sorted during insertion. */
-TC(fill_with_words_check_sorted) {
-    BEGIN_TEST();
-    INIT();
+TEST fill_with_words_check_sorted(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
     char **w = NULL;
     long ct = 0;
     for (w = (char **)wordlist; *w; w++) {
-        if (verbose > 1) printf("word is '%s'\n", *w);
-        A(skiplist_add(sl, *w, *w) >= 0);
+        if (greatest_get_verbosity() > 1) printf("word is '%s'\n", *w);
+        ASSERT(skiplist_add(sl, *w, *w));
         ct++;
-        A(skiplist_count(sl) == ct);
+        ASSERT(skiplist_count(sl) == ct);
     }
-    
+
     cb_udata udata;
     int count = 0;
     udata.count = &count;
     udata.prev = NULL;
     udata.ok = 1;
-    
+
     /* iter and verify they're ordered alphabetically, ascending */
-    A(skiplist_iter(sl, &udata, sl_count_and_check_sorted_cb) == 0);
-    A(udata.ok);
-    A(count == ct);
-    
-    FREE_NN();
-    END_TEST();
+    ASSERT(skiplist_iter(sl, &udata, sl_count_and_check_sorted_cb) == 0);
+    ASSERT(udata.ok);
+    ASSERT(count == ct);
+
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 static int sl_check_and_terminate_early_cb(void *k, void *v, void *udata) {
@@ -185,188 +180,187 @@ static int sl_check_and_terminate_early_cb(void *k, void *v, void *udata) {
     char *word = (char *) k;
     if (0) fprintf(stderr, "ct=%d, prev='%s', cur='%s'\n",
         *ud->count, ud->prev, word);
-    
+
     /* If set, check that prev is <= current word. */
-    if (ud->prev && strcmp(ud->prev, word) > 0) { ud->ok = 0; R 1; }
-    
+    if (ud->prev && strcmp(ud->prev, word) > 0) {
+        ud->ok = 0;
+        return 1;
+    }
+
     ud->prev = (char *) k;
     (*ud->count)++;
-    R (0 == strcmp("onion", word));
+    return (0 == strcmp("onion", word));
 }
 
 /* Same as previous test, but scan from the beginning to "onion". */
-TC(fill_with_words_terminate_early) {
-    BEGIN_TEST();
-    INIT();
+TEST fill_with_words_terminate_early(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
     char **w = NULL;
     long ct = 0;
     for (w = (char **)wordlist; *w; w++) {
-        if (verbose > 1) printf("word is '%s'\n", *w);
-        A(skiplist_add(sl, *w, *w) >= 0);
+        if (greatest_get_verbosity() > 1) printf("word is '%s'\n", *w);
+        ASSERT(skiplist_add(sl, *w, *w));
         ct++;
-        A(skiplist_count(sl) == ct);
+        ASSERT(skiplist_count(sl) == ct);
     }
-    
+
     cb_udata udata;
     int count = 0;
     udata.count = &count;
     udata.prev = NULL;
     udata.ok = 1;
-    
+
     /* iter and verify they're ordered alphabetically, quitting
      * at the word "onion". */
-    A(skiplist_iter(sl, &udata, sl_check_and_terminate_early_cb) == 1);
-    A(udata.ok);
-    A(count == 105);
-    
-    FREE_NN();
-    END_TEST();
+    ASSERT(skiplist_iter(sl, &udata, sl_check_and_terminate_early_cb) == 1);
+    ASSERT(udata.ok);
+    ASSERT(count == 105);
+
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Add a bunch of words, and count the number of words starting from the
  * first occurrence of "onion". Tests that it counts from the _first_;
  * "onion" appears multiple times as a key. */
-TC(fill_with_words_count_from_onion) {
-    BEGIN_TEST();
-    INIT();
+TEST fill_with_words_count_from_onion(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
     char **w = NULL;
     long ct = 0;
     for (w = (char **)wordlist; *w; w++) {
-        if (verbose > 1) printf("word is '%s'\n", *w);
-        A(skiplist_add(sl, *w, *w) >= 0);
+        if (greatest_get_verbosity() > 1) printf("word is '%s'\n", *w);
+        ASSERT(skiplist_add(sl, *w, *w));
         ct++;
-        A(skiplist_count(sl) == ct);
+        ASSERT(skiplist_count(sl) == ct);
     }
-    
+
     cb_udata udata;
     int count = 0;
     udata.count = &count;
     udata.prev = NULL;
     udata.ok = 1;
-    
+
     /* iter and verify they're ordered alphabetically, starting
      * at the word "onion". */
-    A(skiplist_iter_from(sl, "onion", &udata,
+    ASSERT(skiplist_iter_from(sl, "onion", &udata,
             sl_count_and_check_sorted_cb) == 0);
-    A(udata.ok);
-    if (verbose > 1) {
+    ASSERT(udata.ok);
+    if (greatest_get_verbosity() > 1) {
         printf("count is %d\n", count);
         skiplist_debug(sl, stdout, NULL, print_key_cb);
     }
-    A(count == 62);
-    
-    FREE_NN();
-    END_TEST();
+    ASSERT(count == 62);
+
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Test membership for newly added words. */
-TC(add_and_member) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_empty(sl) == 1);
-    A(skiplist_count(sl) == 0);
-    A(skiplist_member(sl, "foo") == 0);
+TEST add_and_member(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_empty(sl) == 1);
+    ASSERT(skiplist_count(sl) == 0);
+    ASSERT(skiplist_member(sl, "foo") == 0);
 
-    A(skiplist_add(sl, "foo", "foo") >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
-    A(skiplist_empty(sl) == 0);
+    ASSERT(skiplist_add(sl, "foo", "foo"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
+    ASSERT(skiplist_empty(sl) == 0);
 
-    FREE_NN();
-    END_TEST();
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Add word, replace word, get old value. */
-TC(add_and_set) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_count(sl) == 0);
-    A(skiplist_member(sl, "foo") == 0);
+TEST add_and_set(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_count(sl) == 0);
+    ASSERT(skiplist_member(sl, "foo") == 0);
 
     /* Add "foo" -> "foo" */
-    A(skiplist_add(sl, "foo", "foo") >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
-    char *v = skiplist_get(sl, "foo");
-    A(v);
-    A(0 == strcmp(v, "foo"));
-    
+    ASSERT(skiplist_add(sl, "foo", "foo"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
+    char *v = NULL;
+    ASSERT(skiplist_get(sl, "foo", (void **)&v));
+    ASSERT(v);
+    ASSERT(0 == strcmp(v, "foo"));
+
     /* Set "foo" -> "bar", check old value */
     char *old = NULL;
-    A(skiplist_set(sl, "foo", "bar", (void **) &old) >= 0);
-    A(old);
-    A(0 == strcmp(old, "foo"));
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
-    v = skiplist_get(sl, "foo");
-    A(v);
-    A(0 == strcmp(v, "bar"));
+    ASSERT(skiplist_set(sl, "foo", "bar", (void **) &old));
+    ASSERT(old);
+    ASSERT(0 == strcmp(old, "foo"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
+    v = NULL;
+    ASSERT(skiplist_get(sl, "foo", (void **)&v));
+    ASSERT(v);
+    ASSERT(0 == strcmp(v, "bar"));
 
-    FREE_NN();
-    END_TEST();
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Set a word in an empty skiplist, check invariants. */
-TC(set) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_count(sl) == 0);
-    A(skiplist_member(sl, "foo") == 0);
+TEST set(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_count(sl) == 0);
+    ASSERT(skiplist_member(sl, "foo") == 0);
 
     /* Set "foo" -> "bar", check old value is NULL & count changes. */
     char *old = NULL;
-    A(skiplist_set(sl, "foo", "bar", (void **) &old) >= 0);
-    A(old == NULL);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
-    char *v = skiplist_get(sl, "foo");
-    A(v);
-    A(0 == strcmp(v, "bar"));
+    ASSERT(skiplist_set(sl, "foo", "bar", (void **) &old));
+    ASSERT(old == NULL);
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
+    char *v = NULL;
+    ASSERT(skiplist_get(sl, "foo", (void **)&v));
+    ASSERT(v);
+    ASSERT(0 == strcmp(v, "bar"));
 
-    FREE_NN();
-    END_TEST();
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Set and delete in an empty skiplist, check invariants. */
-TC(trivial_delete) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_count(sl) == 0);
-    A(skiplist_member(sl, "foo") == 0);
+TEST trivial_delete(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_count(sl) == 0);
+    ASSERT(skiplist_member(sl, "foo") == 0);
 
-    A(skiplist_set(sl, "foo", "bar", NULL) >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
+    ASSERT(skiplist_set(sl, "foo", "bar", NULL));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
 
     char *old = skiplist_delete(sl, "foo");
-    A(old);
-    A(0 == strcmp(old, "bar"));
-    A(skiplist_member(sl, "foo") == 0);
-    A(skiplist_count(sl) == 0);
+    ASSERT(old);
+    ASSERT(0 == strcmp(old, "bar"));
+    ASSERT(skiplist_member(sl, "foo") == 0);
+    ASSERT(skiplist_count(sl) == 0);
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Check that deletion of a nonexistent key does not affect
  * the skiplist. */
-TC(trivial_delete_not_present) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_count(sl) == 0);
-    A(skiplist_member(sl, "foo") == 0);
+TEST trivial_delete_not_present(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_count(sl) == 0);
+    ASSERT(skiplist_member(sl, "foo") == 0);
 
-    A(skiplist_set(sl, "foo", "bar", NULL) >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
+    ASSERT(skiplist_set(sl, "foo", "bar", NULL));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
 
     char *old = skiplist_delete(sl, "baz");
-    A(old == NULL);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
+    ASSERT(old == NULL);
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 static void inc_cb(void *key, void *value, void *udata)
@@ -378,225 +372,218 @@ static void inc_cb(void *key, void *value, void *udata)
 
 /* Add several numeric values, delete some of them, check that
  * everything stays correct. */
-TC(delete_many_individually) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
-    A(sl);
+TEST delete_many_individually(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
+    ASSERT(sl);
     const int limit = 100000;
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         char *cp_buf = test_malloc(20);
-        A(cp_buf);
+        ASSERT(cp_buf);
         strncpy(cp_buf, buf, 20);
-        A(skiplist_add(sl, (void *) i, cp_buf) >= 0);
+        ASSERT(skiplist_add(sl, (void *) i, cp_buf));
     }
-    A(skiplist_count(sl) == limit);
+    ASSERT(skiplist_count(sl) == limit);
 
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         char *old = skiplist_delete(sl, (void *) i);
-        A(old);
-        A(0 == strcmp(old, buf));
+        ASSERT(old);
+        ASSERT(0 == strcmp(old, buf));
         test_free(old, 20);
-        A(skiplist_count(sl) == limit - i - 1);
+        ASSERT(skiplist_count(sl) == limit - i - 1);
     }
-    A(skiplist_count(sl) == 0);
-    A(skiplist_empty(sl));
+    ASSERT(skiplist_count(sl) == 0);
+    ASSERT(skiplist_empty(sl));
     skiplist_free(sl, NULL, NULL);
-    END_TEST();
+    PASS();
 }
 
 /* Add keys, deleet them all. */
-TC(trivial_delete_all) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_add(sl, "foo", "bar") >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
+TEST trivial_delete_all(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_add(sl, "foo", "bar"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
 
-    A(skiplist_add(sl, "foo", "baz") >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 2);
+    ASSERT(skiplist_add(sl, "foo", "baz"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 2);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("\n**** before");
         skiplist_debug(sl, stdout, NULL, print_key_cb);
     }
     int count = 0;
     skiplist_delete_all(sl, "foo", &count, inc_cb);
-    A(count == 2);
-    A(skiplist_count(sl) == 0);
+    ASSERT(count == 2);
+    ASSERT(skiplist_count(sl) == 0);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("\n**** after");
         skiplist_debug(sl, stdout, NULL, NULL /*print_key_cb*/);
     }
-    A(skiplist_member(sl, "foo") == 0);
+    ASSERT(skiplist_member(sl, "foo") == 0);
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Add a bunch of numeric keys (with duplicates), delete_all of
  * the duplicated key, which is at the head of the skiplist. */
-TC(delete_all_first) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
+TEST delete_all_first(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
     const intptr_t limit = 100;
     intptr_t key = 0;
 
-    for (intptr_t i=0; i<limit; i++) {
-        A(skiplist_add(sl, (void *) i, (void *) 1) >= 0);
+    for (intptr_t i = 0; i < limit; i++) {
+        ASSERT(skiplist_add(sl, (void *) i, (void *) 1));
     }
 
-    for (intptr_t i=0; i<30; i++) {
-        A(skiplist_add(sl, (void *) key, (void *) 1) >= 0);
+    for (intptr_t i = 0; i < 30; i++) {
+        ASSERT(skiplist_add(sl, (void *) key, (void *) 1));
     }
 
-    A(skiplist_member(sl, (void *) key) == 1);
-    A(skiplist_count(sl) == limit + 30);
+    ASSERT(skiplist_member(sl, (void *) key) == 1);
+    ASSERT(skiplist_count(sl) == limit + 30);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("**** before");
         skiplist_debug(sl, stdout, NULL, print_intptr_cb);
     }
     int count = 0;
     skiplist_delete_all(sl, (void *) key, &count, inc_cb);
-    A(count == 31);
-    A(skiplist_count(sl) == limit - 1);
+    ASSERT(count == 31);
+    ASSERT(skiplist_count(sl) == limit - 1);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("**** after");
         skiplist_debug(sl, stdout, NULL, print_intptr_cb);
     }
 
-    A(skiplist_member(sl, (void *) key) == 0);
+    ASSERT(skiplist_member(sl, (void *) key) == 0);
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Add a bunch of numeric keys (with duplicates), delete_all of
  * the duplicated key, which is at the middle of the skiplist. */
-TC(delete_all_middle) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
+TEST delete_all_middle(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
     const intptr_t limit = 100000;
     intptr_t key = (limit / 2);
-    for (intptr_t i=0; i<limit; i++) {
-        A(skiplist_add(sl, (void *) i, (void *) 1) >= 0);
+    for (intptr_t i = 0; i < limit; i++) {
+        ASSERT(skiplist_add(sl, (void *) i, (void *) 1));
     }
 
-    for (intptr_t i=0; i<30; i++) {
-        A(skiplist_add(sl, (void *) key, (void *) 1) >= 0);
+    for (intptr_t i = 0; i < 30; i++) {
+        ASSERT(skiplist_add(sl, (void *) key, (void *) 1));
     }
 
-    A(skiplist_member(sl, (void *) 0) == 1);
-    A(skiplist_count(sl) == limit + 30);
+    ASSERT(skiplist_member(sl, (void *) 0) == 1);
+    ASSERT(skiplist_count(sl) == limit + 30);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("**** before");
         skiplist_debug(sl, stdout, NULL, print_intptr_cb);
     }
     int count = 0;
     skiplist_delete_all(sl, (void *) key, &count, inc_cb);
-    A(count == 31);
-    A(skiplist_count(sl) == limit - 1);
+    ASSERT(count == 31);
+    ASSERT(skiplist_count(sl) == limit - 1);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("**** after");
         skiplist_debug(sl, stdout, NULL, print_intptr_cb);
     }
-    A(skiplist_member(sl, (void *) key) == 0);
+    ASSERT(skiplist_member(sl, (void *) key) == 0);
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Add a bunch of numeric keys (with duplicates), delete_all of
  * the duplicated key, which is at the end of the skiplist. */
-TC(delete_all_end) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
+TEST delete_all_end(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
     const intptr_t limit = 100000;
-    for (intptr_t i=0; i<limit; i++) {
-        A(skiplist_add(sl, (void *) i, (void *) 1) >= 0);
+    for (intptr_t i = 0; i < limit; i++) {
+        ASSERT(skiplist_add(sl, (void *) i, (void *) 1));
     }
 
-    for (intptr_t i=0; i<30; i++) {
-        A(skiplist_add(sl, (void *) (limit / 2), (void *) 1) >= 0);
+    for (intptr_t i = 0; i < 30; i++) {
+        ASSERT(skiplist_add(sl, (void *) (limit / 2), (void *) 1));
     }
 
-    A(skiplist_member(sl, (void *) 0) == 1);
-    A(skiplist_count(sl) == limit + 30);
+    ASSERT(skiplist_member(sl, (void *) 0) == 1);
+    ASSERT(skiplist_count(sl) == limit + 30);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("**** before");
         skiplist_debug(sl, stdout, NULL, print_intptr_cb);
     }
     int count = 0;
     skiplist_delete_all(sl, (void *) (limit / 2), &count, inc_cb);
-    A(count == 31);
-    A(skiplist_count(sl) == limit - 1);
+    ASSERT(count == 31);
+    ASSERT(skiplist_count(sl) == limit - 1);
 
-    if (verbose > 1) {
+    if (greatest_get_verbosity() > 1) {
         puts("**** after");
         skiplist_debug(sl, stdout, NULL, print_intptr_cb);
     }
-    A(skiplist_member(sl, (void *) (limit / 2)) == 0);
+    ASSERT(skiplist_member(sl, (void *) (limit / 2)) == 0);
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Get the first value. */
-TC(first) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_add(sl, "foo", "bar") >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
+TEST first(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_add(sl, "foo", "bar"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
 
-    A(skiplist_add(sl, "bar", "baz") >= 0);
-    A(skiplist_member(sl, "bar") == 1);
-    A(skiplist_count(sl) == 2);
+    ASSERT(skiplist_add(sl, "bar", "baz"));
+    ASSERT(skiplist_member(sl, "bar") == 1);
+    ASSERT(skiplist_count(sl) == 2);
 
     char *k = NULL;
     char *v = NULL;
-    A(skiplist_first(sl, (void **) &k, (void **) &v) >= 0);
-    A(k);
-    A(v);
-    A(0 == strcmp(k, "bar"));
-    A(0 == strcmp(v, "baz"));
+    ASSERT(skiplist_first(sl, (void **) &k, (void **) &v));
+    ASSERT(k);
+    ASSERT(v);
+    ASSERT(0 == strcmp(k, "bar"));
+    ASSERT(0 == strcmp(v, "baz"));
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 /* Get the last value. */
-TC(last) {
-    BEGIN_TEST();
-    INIT();
-    A(skiplist_add(sl, "foo", "bar") >= 0);
-    A(skiplist_member(sl, "foo") == 1);
-    A(skiplist_count(sl) == 1);
+TEST last(void) {
+    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    ASSERT(skiplist_add(sl, "foo", "bar"));
+    ASSERT(skiplist_member(sl, "foo") == 1);
+    ASSERT(skiplist_count(sl) == 1);
 
-    A(skiplist_add(sl, "bar", "baz") >= 0);
-    A(skiplist_member(sl, "bar") == 1);
-    A(skiplist_count(sl) == 2);
+    ASSERT(skiplist_add(sl, "bar", "baz"));
+    ASSERT(skiplist_member(sl, "bar") == 1);
+    ASSERT(skiplist_count(sl) == 2);
 
     char *k = NULL;
     char *v = NULL;
-    A(skiplist_last(sl, (void **) &k, (void **) &v) >= 0);
-    A(k);
-    A(v);
-    A(0 == strcmp(k, "foo"));
-    A(0 == strcmp(v, "bar"));
+    ASSERT(skiplist_last(sl, (void **) &k, (void **) &v));
+    ASSERT(k);
+    ASSERT(v);
+    ASSERT(0 == strcmp(k, "foo"));
+    ASSERT(0 == strcmp(v, "bar"));
 
-    FREE_NN();
-    END_TEST();    
+    skiplist_free(sl, NULL, NULL);
+    PASS();
 }
 
 struct clear_cb_ud {
@@ -619,130 +606,126 @@ static void clear_cb(void *key, void *value, void *udata)
 }
 
 /* Clear the skiplist. */
-TC(clear) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
-    A(sl);
+TEST clear(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
+    ASSERT(sl);
     const int limit = 1000000;
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         char *cp_buf = test_malloc(20);
-        A(cp_buf);
+        ASSERT(cp_buf);
         strncpy(cp_buf, buf, 20);
-        A(skiplist_add(sl, (void *) i, cp_buf) >= 0);
+        ASSERT(skiplist_add(sl, (void *) i, cp_buf));
     }
 
     struct clear_cb_ud ud;
     ud.count = 0;
     ud.ok = 1;
     int ct = skiplist_clear(sl, &ud, clear_cb);
-    A(ud.ok == 1);
-    A(ud.count == limit);
-    A(ct == limit);
+    ASSERT(ud.ok == 1);
+    ASSERT(ud.count == limit);
+    ASSERT(ct == limit);
     skiplist_free(sl, NULL, NULL);
-    END_TEST();
+    PASS();
 }
 
 /* Clear the skiplist with the free callback. */
-TC(free_clear) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
-    A(sl);
+TEST free_clear(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
+    ASSERT(sl);
     const int limit = 10000;
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         char *cp_buf = test_malloc(20);
-        A(cp_buf);
+        ASSERT(cp_buf);
         strncpy(cp_buf, buf, 20);
-        A(skiplist_add(sl, (void *) i, cp_buf) >= 0);
+        ASSERT(skiplist_add(sl, (void *) i, cp_buf));
     }
 
     struct clear_cb_ud ud;
     ud.count = 0;
     ud.ok = 1;
     int ct = skiplist_free(sl, &ud, clear_cb);
-    A(ud.ok == 1);
-    A(ud.count == limit);
-    A(ct == limit);
-    END_TEST();
+    ASSERT(ud.ok == 1);
+    ASSERT(ud.count == limit);
+    ASSERT(ct == limit);
+    PASS();
 }
 
 /* Add numeric pairs, then pepeatedly pop the first key/value pair
  * until empty, and check invariants. */
-TC(pop_first) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
-    A(sl);
+TEST pop_first(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
+    ASSERT(sl);
     const int limit = 1000;
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         char *cp_buf = test_malloc(20);
-        A(cp_buf);
+        ASSERT(cp_buf);
         strncpy(cp_buf, buf, 20);
-        A(skiplist_add(sl, (void *) i, cp_buf) >= 0);
+        ASSERT(skiplist_add(sl, (void *) i, cp_buf));
     }
 
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         long key = 0;
         char *value = NULL;
-        A(skiplist_count(sl) == limit - i);
-        A(skiplist_pop_first(sl, (void **) &key, (void **) &value) >= 0);
-        A(skiplist_count(sl) == limit - i - 1);
-        A(key == i);
-        A(0 == strcmp(value, buf));
+        ASSERT(skiplist_count(sl) == limit - i);
+        ASSERT(skiplist_pop_first(sl, (void **) &key, (void **) &value));
+        ASSERT(skiplist_count(sl) == limit - i - 1);
+        ASSERT(key == i);
+        ASSERT(0 == strcmp(value, buf));
         test_free(value, 20);
     }
 
-    A(skiplist_pop_first(sl, NULL, NULL) < 0);
-    A(skiplist_empty(sl) == 1);
-    A(skiplist_count(sl) == 0);
+    ASSERT(!skiplist_pop_first(sl, NULL, NULL));
+    ASSERT(skiplist_empty(sl) == 1);
+    ASSERT(skiplist_count(sl) == 0);
     skiplist_free(sl, NULL, NULL);
-    END_TEST();
+    PASS();
 }
 
 /* Add numeric pairs, then pepeatedly pop the last key/value pair
  * until empty, and check invariants. */
-TC(pop_last) {
-    BEGIN_TEST();
-    SL *sl = skiplist_new(sl_longcmp);
-    A(sl);
+TEST pop_last(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp);
+    ASSERT(sl);
     const int limit = 1000;
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", i);
         char *cp_buf = test_malloc(20);
-        A(cp_buf);
+        ASSERT(cp_buf);
         strncpy(cp_buf, buf, 20);
-        A(skiplist_add(sl, (void *) i, cp_buf) >= 0);
+        ASSERT(skiplist_add(sl, (void *) i, cp_buf));
     }
 
-    for (long i=0; i<limit; i++) {
+    for (long i = 0; i < limit; i++) {
         char buf[20];
         snprintf(buf, 20, "%ld", limit - i - 1);
         long key = 0;
         char *value = NULL;
-        A(skiplist_count(sl) == limit - i);
-        A(skiplist_pop_last(sl, (void **) &key, (void **) &value) >= 0);
-        A(skiplist_count(sl) == limit - i - 1);
-        if (verbose > 1)
+        ASSERT(skiplist_count(sl) == limit - i);
+        ASSERT(skiplist_pop_last(sl, (void **) &key, (void **) &value));
+        ASSERT(skiplist_count(sl) == limit - i - 1);
+        if (greatest_get_verbosity() > 1)
             fprintf(stderr, "i is %ld, got %ld and '%s', expected %ld\n",
                 i, key, value, limit - i - 1);
-        A(key == limit - i - 1);
-        A(0 == strcmp(value, buf));
+        ASSERT(key == limit - i - 1);
+        ASSERT(0 == strcmp(value, buf));
         test_free(value, 20);
     }
 
-    A(skiplist_pop_last(sl, NULL, NULL) < 0);
-    A(skiplist_empty(sl) == 1);
-    A(skiplist_count(sl) == 0);
+    ASSERT(!skiplist_pop_last(sl, NULL, NULL));
+    ASSERT(skiplist_empty(sl) == 1);
+    ASSERT(skiplist_count(sl) == 0);
     skiplist_free(sl, NULL, NULL);
 
-    END_TEST();
+    PASS();
 }
 
 
@@ -750,42 +733,40 @@ TC(pop_last) {
 /* Suite */
 /*********/
 
-static char *run_suite(char *test) {
-#define TESTCASE(NAME)                                                  \
-    if (!test || 0 == strcmp(test, #NAME)) {                            \
-        if (verbose)                                                    \
-            fprintf(stderr, "-- Running test '%s'\n", #NAME);           \
-        mu_run_test(NAME);                                              \
-    }
-#include "test_list.h"
-    TESTCASE(clear);
-    R NULL;
+GREATEST_MAIN_DEFS();
+
+SUITE(suite) {
+    SET_SETUP(setup, NULL);
+    SET_TEARDOWN(teardown, NULL);
+
+    RUN_TEST(init);
+    RUN_TEST(add_one_word);
+    RUN_TEST(level_statistical_distribution);
+    RUN_TEST(fill_with_words);
+    RUN_TEST(fill_with_words_check_sorted);
+    RUN_TEST(fill_with_words_terminate_early);
+    RUN_TEST(fill_with_words_count_from_onion);
+    RUN_TEST(add_and_member);
+    RUN_TEST(add_and_set);
+    RUN_TEST(set);
+    RUN_TEST(trivial_delete);
+    RUN_TEST(trivial_delete_not_present);
+    RUN_TEST(delete_many_individually);
+    RUN_TEST(trivial_delete_all);
+    RUN_TEST(delete_all_first);
+    RUN_TEST(delete_all_middle);
+    RUN_TEST(delete_all_end);
+    RUN_TEST(first);
+    RUN_TEST(last);
+    RUN_TEST(clear);
+    RUN_TEST(free_clear);
+    RUN_TEST(pop_first);
+    RUN_TEST(pop_last);
 }
 
-int main(int argc, char **argv) {
-    char *testname = NULL;
-proc_arg:
-    if (argc > 1) {
-        if (0 == strcmp("-v", argv[1])) {
-            verbose++;
-            argv++;
-            argc--;
-            goto proc_arg;
-        } else if (argc > 2 && 0 == (strcmp("-s", argv[1]))) {
-            global_seed = atol(argv[2]);
-            argv += 2;
-            argc -= 2;
-            goto proc_arg;
-        } else {
-            testname = argv[1];
-        }
-    }
-    
+int main (int argc, char **argv) {
+    GREATEST_MAIN_BEGIN();      /* init & parse command-line args */
     srandom(global_seed);
-
-    char *res = run_suite(testname);
-    fprintf(stderr, "%d test%s run\n",
-        tests_run, tests_run == 1 ? "" : "s");
-    if (res) fprintf(stderr, "Error: %s\n", res);
-    return (res != NULL);
+    RUN_SUITE(suite);
+    GREATEST_MAIN_END();        /* display results */
 }

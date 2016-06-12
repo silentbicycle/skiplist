@@ -92,20 +92,21 @@ unsigned int SKIPLIST_GEN_HEIGHT(void);
  * If you add multiple values under the same key, they will not
  * necessarily be stored in any particular order.
  * Returns whether the value was successfully added. */
-int skiplist_add(struct skiplist *sl, void *key, void *value);
+bool skiplist_add(struct skiplist *sl, void *key, void *value);
 
 /* Set a key/value pair in the skiplist, replacing an existing
  * value if present. If OLD is non-NULL, then *old will be set
  * to the previous value, or NULL if it was not present.
  * Otherwise behaves the same as skiplist_add. */
-int skiplist_set(struct skiplist *sl, void *key, void *value, void **old);
+bool skiplist_set(struct skiplist *sl, void *key, void *value, void **old);
 
-/* Get the value associated with KEY, or NULL if not present. */
-void *skiplist_get(struct skiplist *sl, void *key);
+/* Get the value associated with KEY. If the key is found and VALUE is
+ * non-NULL, it will be written into *VALUE.
+ * Returns whether the key was found. */
+bool skiplist_get(struct skiplist *sl, void *key, void **value);
 
-/* Does the skiplist contain KEY?
- * Note - will fail if the value is NULL. */
-int skiplist_member(struct skiplist *sl, void *key);
+/* Does the skiplist contain KEY? */
+bool skiplist_member(struct skiplist *sl, void *key);
 
 /* Delete an association for KEY in the skiplist.
  * Returns the value, or NULL if not present.
@@ -124,20 +125,20 @@ void skiplist_delete_all(struct skiplist *sl, void *key,
  * Passing in a NULL key is legal, it will be ignored.
  * Passing in a NULL value is legal, but useless.
  * Returns 0 on success, or <0 on error, e.g. an empty skiplist. */
-int skiplist_first(struct skiplist *sl, void **key, void **value);
-int skiplist_last(struct skiplist *sl, void **key, void **value);
+bool skiplist_first(struct skiplist *sl, void **key, void **value);
+bool skiplist_last(struct skiplist *sl, void **key, void **value);
 
 /* Pop the key/value pair off the skiplist with the first/last key.
  * Same return behavior as skiplist_first/last, but also deletes the pair. */
-int skiplist_pop_first(struct skiplist *sl, void **key, void **value);
-int skiplist_pop_last(struct skiplist *sl, void **key, void **value);
+bool skiplist_pop_first(struct skiplist *sl, void **key, void **value);
+bool skiplist_pop_last(struct skiplist *sl, void **key, void **value);
 
 /* How many pairs are in the skiplist?
  * Returns <0 on error. */
 long skiplist_count(struct skiplist *sl);
 
 /* Is the skiplist empty? */
-int skiplist_empty(struct skiplist *sl);
+bool skiplist_empty(struct skiplist *sl);
 
 /* Iterate over the skiplist. See the typedef comment for
  * skiplist_iter_cb for more information. */
