@@ -1,12 +1,16 @@
-TARGETS=	libskiplist.a test_skiplist bench
+PROJECT=skiplist
 
-#CC=	gcc
-#CC=	clang
+TARGETS=	lib${PROJECT}.a test_${PROJECT} bench
 
-WARN=	-Wall -Wshadow -Wuninitialized
+WARN=		-Wall -Wshadow -Wuninitialized \
+		-Wmissing-declarations \
+		-Wmissing-prototypes \
+		-Wno-unused-parameter
+
+# -pedantic -Wextra
 
 CFLAGS+=	${WARN} -std=c99
-CFLAGS+=	-O2
+CFLAGS+=	-O3
 #CFLAGS+=	-DNDEBUG
 CFLAGS+=	-g #-pg
 
@@ -53,5 +57,20 @@ TAGS: skiplist.c ${SKIPLIST_HEADERS}
 
 clean:
 	rm -rf libskiplist*.a test_skiplist *.o *.core TAGS test_list.h *.dSYM
+
+# Installation
+PREFIX ?=	/usr/local
+INSTALL ?=	install
+RM ?=		rm
+MAN_DEST ?=	${PREFIX}/share/man
+
+install:
+	${INSTALL} -c lib${PROJECT}.a ${PREFIX}/lib
+	${INSTALL} -c ${PROJECT}.h ${PREFIX}/include
+#	${INSTALL} -c man/${PROJECT}.1 ${MAN_DEST}/man1/
+
+uninstall:
+	${RM} -f ${PREFIX}/bin/${PROJECT}
+#	${RM} -f ${MAN_DEST}/man1/${PROJECT}.1
 
 distclean: clean
