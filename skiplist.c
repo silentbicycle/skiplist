@@ -76,7 +76,7 @@ static struct skiplist_node *node_alloc(uint8_t height,
     n->h = height;
     n->k = key;
     n->v = value;
-    LOG2("allocated %d-level node at %p\n", height, n);
+    LOG2("allocated %d-level node at %p\n", height, (void *)n);
     DO(height, n->next[i] = &SENTINEL);
     return n;
 }
@@ -120,14 +120,14 @@ static void init_prevs(struct skiplist *sl, void *key,
     int lvl = height - 1, res = 0;
 
     cur = head;
-    LOG2("sentinel is %p\n", &SENTINEL);
-    LOG2("head is %p\n", head);
+    LOG2("sentinel is %p\n", (void *)&SENTINEL);
+    LOG2("head is %p\n", (void *)head);
 
     do {
         assert(lvl < cur->h);
         assert(cur->h <= SKIPLIST_MAX_HEIGHT);
         next = cur->next[lvl];
-        LOG2("next is %p, level is %d\n", next, lvl);
+        LOG2("next is %p, level is %d\n", (void *)next, lvl);
         res = IS_SENTINEL(next) ? 1 : sl->cmp(next->k, key);
         LOG2("res is %d\n", res);
         if (res < 0) {              /* < - advance. */
@@ -239,15 +239,15 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
 
         DO(cur_height, nexts[i] = &SENTINEL);
 
-        LOG2("head is %p, sentinel is %p\n", head, &SENTINEL);
+        LOG2("head is %p, sentinel is %p\n", (void *)head, (void *)&SENTINEL);
         if (SKIPLIST_LOG_LEVEL > 0)
-            DO(cur_height, LOG2("prevs[%i]: %p\n", i, prevs[i]));
+            DO(cur_height, LOG2("prevs[%i]: %p\n", i, (void *)prevs[i]));
 
         /* Take the prevs, make another array of the first
          * point beyond the deleted cells at each level, and
          * link from prev to post. */
         do {
-            LOG2("doomed is %p\n", doomed);
+            LOG2("doomed is %p\n", (void *)doomed);
             struct skiplist_node *next = doomed->next[0];
             assert(next);
             LOG2("cur tdh: %d, next->h: %d, new tdh: %d\n",
@@ -260,10 +260,10 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
              * key. The added CMPs could be slower, though.*/
             DO(doomed->h,
                 LOG2("nexts[%d] = doomed->next[%d] (%p)\n",
-                    i, i, doomed->next[i]);
+                    i, i, (void *)doomed->next[i]);
                 nexts[i] = doomed->next[i]);
             if (SKIPLIST_LOG_LEVEL > 1)
-                DO(tdh, fprintf(stderr, "nexts[%d] = %p\n", i, nexts[i]));
+                DO(tdh, fprintf(stderr, "nexts[%d] = %p\n", i, (void *)nexts[i]));
 
             cb(key, doomed->v, udata);
             sl->count--;
@@ -275,7 +275,7 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
 
         LOG2("tdh is %d\n", tdh);
         DO(tdh,
-            LOG2("setting prevs[%d]->next[%d] to %p\n", i, i, nexts[i]);
+            LOG2("setting prevs[%d]->next[%d] to %p\n", i, i, (void *)nexts[i]);
             prevs[i]->next[i] = nexts[i]);
         return false;
     }
@@ -451,7 +451,7 @@ void skiplist_iter_from(struct skiplist *sl, void *key,
     assert(sl);
     assert(cb);
     struct skiplist_node *cur = get_first_eq_node(sl, key);
-    LOG2("first node is %p\n", cur);
+    LOG2("first node is %p\n", (void *)cur);
     if (cur == NULL) { return; }
     walk_and_apply(cur, cb, udata);
 }
@@ -488,15 +488,13 @@ void skiplist_debug(struct skiplist *sl, FILE *f,
     int max_lvl = sl->head->h;
     int counts[max_lvl];
     DO(max_lvl, counts[i] = 0);
-    if (f) {
-        fprintf(f, "max level is %d\n", max_lvl);
-        fprintf(f, "cmp cb is %p\n", sl->cmp);
-    }
+    if (f) { fprintf(f, "max level is %d\n", max_lvl); }
+
     struct skiplist_node *head = sl->head;
     assert(head);
     if (f) {
         fprintf(f, "head is %p\nsentinel is %p\n",
-            head, &SENTINEL);
+            (void *)head, (void *)&SENTINEL);
     }
     struct skiplist_node *n = NULL;
 
@@ -505,14 +503,15 @@ void skiplist_debug(struct skiplist *sl, FILE *f,
         if (f) { fprintf(f, "-- L %d:", i); }
         for (n = head->next[i]; n != &SENTINEL; n = n->next[i]) {
             if (f) {
-                fprintf(f, " -> %p(%d%s", n, n->h, cb == NULL ? "" : ":");
+                fprintf(f, " -> %p(%d%s",
+                    (void *)n, n->h, cb == NULL ? "" : ":");
                 if (cb) { cb(f, n->k, n->v, udata); }
                 fprintf(f, ")");
             }
 
             if (f && n->h > max_lvl) {
                 fprintf(stderr, "\nERROR: node %p's ->h > head->h (%d, %d)\n",
-                    n, n->h, max_lvl);
+                    (void *)n, n->h, max_lvl);
             }
             assert(n->h <= max_lvl);
             ct++;
@@ -521,7 +520,7 @@ void skiplist_debug(struct skiplist *sl, FILE *f,
         prev_ct = ct;
         counts[i] = ct;
         ct = 0;
-        if (f) { fprintf(f, " -> &SENTINEL(%p)\n", &SENTINEL); }
+        if (f) { fprintf(f, " -> &SENTINEL(%p)\n", (void *)&SENTINEL); }
     }
 
     if (f) {

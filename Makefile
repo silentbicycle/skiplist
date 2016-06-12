@@ -7,7 +7,7 @@ WARN=		-Wall -Wshadow -Wuninitialized \
 		-Wmissing-prototypes \
 		-pedantic -Wextra
 
-CFLAGS+=	${WARN} -std=c99
+CFLAGS+=	${WARN} -std=c99 -D_BSD_SOURCE
 CFLAGS+=	-O3
 #CFLAGS+=	-DNDEBUG
 CFLAGS+=	-g #-pg
