@@ -7,21 +7,36 @@
 
 #include "skiplist.h"
 
+#include <sys/time.h>
+
 typedef struct skiplist skiplist;
 
-#define TIME(name) \
-    clock_t timer_##name = clock();             \
-    assert(timer_##name != -1);
+static const size_t usec_per_sec = 1000000L;
 
-#define CMP_TIME(label, n1, n2)                                          \
-    {                                                                    \
-    clock_t delta = timer_##n2 - timer_##n1;                             \
-    double dsec = delta / (1.0 * CLOCKS_PER_SEC);                        \
-    fprintf(stdout, "%-30s %8lu ticks (%1.3f sec, %12.3f K ops/sec)\n",  \
-        label, (unsigned long) delta, dsec, (lim / dsec)/1000.0);        \
-    }
+static size_t get_usec_delta(struct timeval *pre, struct timeval *post) {
+    return (usec_per_sec * (post->tv_sec - pre->tv_sec)
+        + (post->tv_usec - pre->tv_usec));
+}
+
+#define TIME(name)                                                      \
+        struct timeval timer_##name = { 0, 0 };                         \
+        int timer_res_##name = gettimeofday(&timer_##name, NULL);       \
+        (void)timer_res_##name;                                         \
+        assert(0 == timer_res_##name);                                  \
+
+#define CMP_TIME(label, n1, n2)                                         \
+    do {                                                                \
+        size_t usec_delta = get_usec_delta(&timer_##n1, &timer_##n2);   \
+        double usec_per = usec_delta / (double)lim;                     \
+        double per_second = usec_per_sec / usec_per;                    \
+        printf("%-30s limit %zd %9.3f msec, %6.3f usec per, "           \
+            "%11.3f K ops/sec\n",                                       \
+            label, lim, usec_delta / (double)1000,                      \
+            usec_per, per_second / 1000);                               \
+    } while(0)                                                          \
 
 #define TDIFF() CMP_TIME(__FUNCTION__, pre, post)
+
 #define DEF_LIM 100000
 
 static const int largeish_prime = 7919;
@@ -468,12 +483,13 @@ static void ins_and_sum_partway(void) {
 int main(int argc, char **argv) {
     if (argc > 1) {
         lim = atol(argv[1]);
-        if (lim <= 1) { printf("Bad limit"); exit(1); }
+        if (lim <= 1) {
+            fprintf(stderr, "Bad limit.\nUsage: bench [LIMIT]\n");
+            exit(1);
+        }
     } else {
         lim = DEF_LIM;
     }
-
-    fprintf(stdout, "%lu iterations (run as `bench INT` to set):\n----\n", lim);
 
     TIME(pre);
     ins();
@@ -500,11 +516,8 @@ int main(int argc, char **argv) {
     ins_and_sum_partway();
 
     TIME(post);
-    fprintf(stdout, "----\n");
-    clock_t delta = timer_post - timer_pre;
-    double dsec = delta / (1.0 * CLOCKS_PER_SEC);
-    fprintf(stdout, "%-40s %lu ticks (%.3f sec)\n",
-        "total", (unsigned long) delta, dsec);
+    double usec_total = (double)get_usec_delta(&timer_pre, &timer_post);
+    printf("----\n%-30s %.3f sec\n", "total", usec_total / usec_per_sec);
 
     return 0;
 }
