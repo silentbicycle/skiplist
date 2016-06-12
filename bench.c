@@ -407,11 +407,11 @@ static void ins_and_clear(void) {
     skiplist_free(sl, NULL, NULL);
 }
 
-static int sum_cb(void *k, void *v, void *ud) {
+static enum skiplist_iter_res sum_cb(void *k, void *v, void *ud) {
     (void)v;
     intptr_t *p = (intptr_t *) ud;
     *p += (intptr_t) k;
-    return 0;
+    return SKIPLIST_ITER_CONTINUE;
 }
 
 static void sum(void) {

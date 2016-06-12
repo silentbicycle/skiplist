@@ -135,7 +135,8 @@ typedef struct cb_udata {
     int ok;
 } cb_udata;
 
-static int sl_count_and_check_sorted_cb(void *k, void *v, void *udata) {
+static enum skiplist_iter_res
+sl_count_and_check_sorted_cb(void *k, void *v, void *udata) {
     (void)v;
     cb_udata *ud = (cb_udata *) udata;
     char *word = (char *) k;
@@ -145,12 +146,12 @@ static int sl_count_and_check_sorted_cb(void *k, void *v, void *udata) {
     /* If set, check that prev is <= current word. */
     if (ud->prev && strcmp(ud->prev, word) > 0) {
         ud->ok = 0;
-        return 1;
+        return SKIPLIST_ITER_HALT;
     }
 
     ud->prev = (char *) k;
     (*ud->count)++;
-    return 0;
+    return SKIPLIST_ITER_CONTINUE;
 }
 
 /* Add words and check that they are automatically sorted during insertion. */
@@ -172,7 +173,8 @@ TEST fill_with_words_check_sorted(void) {
     udata.ok = 1;
 
     /* iter and verify they're ordered alphabetically, ascending */
-    ASSERT(skiplist_iter(sl, sl_count_and_check_sorted_cb, &udata) == 0);
+    skiplist_iter(sl, sl_count_and_check_sorted_cb, &udata);
+    ASSERT_EQ_FMT(1, udata.ok, "%d");
     ASSERT(udata.ok);
     ASSERT(count == ct);
 
@@ -180,7 +182,8 @@ TEST fill_with_words_check_sorted(void) {
     PASS();
 }
 
-static int sl_check_and_terminate_early_cb(void *k, void *v, void *udata) {
+static enum skiplist_iter_res
+sl_check_and_terminate_early_cb(void *k, void *v, void *udata) {
     (void)v;
     cb_udata *ud = (cb_udata *) udata;
     char *word = (char *) k;
@@ -190,12 +193,16 @@ static int sl_check_and_terminate_early_cb(void *k, void *v, void *udata) {
     /* If set, check that prev is <= current word. */
     if (ud->prev && strcmp(ud->prev, word) > 0) {
         ud->ok = 0;
-        return 1;
+        return SKIPLIST_ITER_HALT;
     }
 
     ud->prev = (char *) k;
     (*ud->count)++;
-    return (0 == strcmp("onion", word));
+    if (0 == strcmp("onion", word)) {
+        return SKIPLIST_ITER_HALT;
+    } else {
+        return SKIPLIST_ITER_CONTINUE;
+    }
 }
 
 /* Same as previous test, but scan from the beginning to "onion". */
@@ -218,7 +225,7 @@ TEST fill_with_words_terminate_early(void) {
 
     /* iter and verify they're ordered alphabetically, quitting
      * at the word "onion". */
-    ASSERT(skiplist_iter(sl, sl_check_and_terminate_early_cb, &udata) == 1);
+    skiplist_iter(sl, sl_check_and_terminate_early_cb, &udata);
     ASSERT(udata.ok);
     ASSERT(count == 105);
 
@@ -248,8 +255,8 @@ TEST fill_with_words_count_from_onion(void) {
 
     /* iter and verify they're ordered alphabetically, starting
      * at the word "onion". */
-    ASSERT(skiplist_iter_from(sl, "onion",
-            sl_count_and_check_sorted_cb, &udata) == 0);
+    skiplist_iter_from(sl, "onion",
+        sl_count_and_check_sorted_cb, &udata);
     ASSERT(udata.ok);
     if (greatest_get_verbosity() > 1) {
         printf("count is %zd\n", count);

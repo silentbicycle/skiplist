@@ -430,29 +430,30 @@ bool skiplist_empty(struct skiplist *sl) {
     return (skiplist_count(sl) == 0);
 }
 
-static int walk_and_apply(struct skiplist_node *cur,
+static void walk_and_apply(struct skiplist_node *cur,
         skiplist_iter_cb *cb, void *udata) {
     while (!IS_SENTINEL(cur)) {
-        int res = cb(cur->k, cur->v, udata);
-        if (res != 0) { return res; }
+        enum skiplist_iter_res res;
+        res = cb(cur->k, cur->v, udata);
+        if (res != SKIPLIST_ITER_CONTINUE) { break; }
         cur = cur->next[0];
     }
-    return 0;
 }
 
-int skiplist_iter(struct skiplist *sl, skiplist_iter_cb *cb, void *udata) {
-    assert(sl); assert(cb);
-    return walk_and_apply(sl->head->next[0], cb, udata);
+void skiplist_iter(struct skiplist *sl, skiplist_iter_cb *cb, void *udata) {
+    assert(sl);
+    assert(cb);
+    walk_and_apply(sl->head->next[0], cb, udata);
 }
 
-int skiplist_iter_from(struct skiplist *sl, void *key,
+void skiplist_iter_from(struct skiplist *sl, void *key,
         skiplist_iter_cb *cb, void *udata) {
-    assert(sl); assert(cb);
+    assert(sl);
+    assert(cb);
     struct skiplist_node *cur = get_first_eq_node(sl, key);
     LOG2("first node is %p\n", cur);
-    if (cur == NULL) { return -1; }
+    if (cur == NULL) { return; }
     walk_and_apply(cur, cb, udata);
-    return 0;
 }
 
 size_t skiplist_clear(struct skiplist *sl,

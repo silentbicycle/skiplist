@@ -124,28 +124,31 @@ size_t skiplist_count(struct skiplist *sl);
 bool skiplist_empty(struct skiplist *sl);
 
 /* Callback when iterating over the contents of the skiplist.
- * If it returns nonzero, iteration will terminate immediately
- * and return that result.
+ * The return value determines whether to keep iterating.
  * UDATA is an extra void * for the callback's closure/enironment. */
-typedef int skiplist_iter_cb(void *key, void *value, void *udata);
+enum skiplist_iter_res {
+    SKIPLIST_ITER_HALT,
+    SKIPLIST_ITER_CONTINUE,
+};
+typedef enum skiplist_iter_res
+skiplist_iter_cb(void *key, void *value, void *udata);
 
 /* Iterate over the skiplist. See the typedef comment for
  * skiplist_iter_cb for more information. */
-int skiplist_iter(struct skiplist *sl,
+void skiplist_iter(struct skiplist *sl,
     skiplist_iter_cb *cb, void *udata);
 
-/* Iterate over the skiplist, beginning at KEY.
- * Returns <0 if KEY is not present. */
-int skiplist_iter_from(struct skiplist *sl, void *key,
+/* Iterate over the skiplist, beginning at KEY. */
+void skiplist_iter_from(struct skiplist *sl, void *key,
     skiplist_iter_cb *cb, void *udata);
 
 /* Clear the skiplist. Returns the number of pairs removed,
- * or <0 on error. */
+ * or 0 on error. */
 size_t skiplist_clear(struct skiplist *sl,
     skiplist_free_cb *cb, void *udata);
 
 /* Clear and free the skiplist. Returns the number of pairs removed,
- * or <0 on error. */
+ * or 0 on error. */
 size_t skiplist_free(struct skiplist *sl,
     skiplist_free_cb *cb, void *udata);
 
