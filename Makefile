@@ -1,6 +1,6 @@
 PROJECT=skiplist
 
-TARGETS=	lib${PROJECT}.a test_${PROJECT} #bench
+TARGETS=	lib${PROJECT}.a test_${PROJECT} bench
 
 WARN=		-Wall -Wshadow -Wuninitialized \
 		-Wmissing-declarations \
@@ -29,6 +29,9 @@ all: ${TARGETS}
 
 test: test_skiplist
 	@./test_skiplist
+
+benchmark: bench
+	@./bench
 
 libskiplist.a: skiplist.o
 	${MAKE_LIB} skiplist.o
