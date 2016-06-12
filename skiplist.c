@@ -19,25 +19,16 @@
 #include <unistd.h>
 #include <assert.h>
 
-#if SKIPLIST_USE_LOCK
-#include <pthread.h>
-#endif
-
 #include "skiplist_config.h"
 #include "skiplist.h"
 #include "skiplist_macros_internal.h"
 
 typedef struct skiplist {
     skiplist_count_t count;
-    struct skiplist_node *head;
-    
+    struct skiplist_node *head;    
+
 #ifndef SKIPLIST_CMP_CB
     skiplist_cmp_cb *cmp;
-#endif
-
-#if SKIPLIST_USE_LOCK
-    /* Lock. Only needed when changing count or head. Right? */
-    pthread_mutex_t lock;
 #endif
 
 } skiplist;
@@ -46,11 +37,7 @@ typedef struct skiplist_node {
     int h;                  /* node height */
     void *k;                /* key */
     void *v;                /* value */
-    
-#if SKIPLIST_USE_LOCK
-    pthread_mutex_t lock;
-#endif
-    
+
     /* Forward pointers.
      * allocated with (h)*sizeof(N*) extra bytes. */
     struct skiplist_node *next[];
@@ -66,13 +53,12 @@ T *skiplist_new(SKIPLIST_NEW_ARGS) {
     T *sl = SKIPLIST_MALLOC(sizeof(*sl));
     if (sl == NULL) { LOG1("alloc fail\n"); return NULL; }
     sl->count = 0;
-    
+
     N *head = N_alloc(1, &SENTINEL, &SENTINEL);
     if (head == NULL) { SKIPLIST_FREE(sl, sizeof(*sl)); return NULL; }
     sl->head = head;
-    
+
     SKIPLIST_CMP_INIT();    /* set *cmp, if not hardcoded */
-    SKIPLIST_LOCK_INIT();   /* init lock, if used */
     return sl;
 }
 

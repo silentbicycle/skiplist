@@ -26,27 +26,6 @@
 #define DO(count, block)                                \
         { for(int i=0; i<count; i++) { block; } }
 
-/* Macros to cut down on ugly conditional-compilation-heavy code. */
-#if SKIPLIST_USE_LOCK
-
-#define SKIPLIST_LOCK_INIT(lock)                                \
-        if (pthread_mutex_init(lock, NULL) != 0) goto lockfail;
-#define SKIPLIST_LOCK_FREE(lock)                                \
-        if (pthread_mutex_destroy(lock) != 0) goto lockfail;
-#define SKIPLIST_LOCK(lock)                                     \
-        if (pthread_mutex_lock(lock) != 0) goto lockfail;
-#define SKIPLIST_UNLOCK(lock)                                   \
-        if (pthread_mutex_unlock(lock) != 0) goto lockfail;
-
-#else
-/* No-Ops */
-#define SKIPLIST_LOCK_INIT(lock)
-#define SKIPLIST_LOCK_FREE(lock)
-#define SKIPLIST_LOCK(lock)
-#define SKIPLIST_UNLOCK(lock)
-
-#endif
-
 #ifdef SKIPLIST_CMP_CB
 #define SKIPLIST_CMP(a, b) SKIPLIST_CMP_CB(a, b)
 #define SKIPLIST_CMP_INIT() /* No-op */

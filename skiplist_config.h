@@ -14,15 +14,6 @@
 #define SKIPLIST_MAX_HEIGHT 28
 #endif
 
-/* Should the skiplist nodes include a pthread_mutex_t?
- * Skiplists have reasonably good performance in a multithreaded
- * system, since most writes tend to be very localized.
- * 
- * NOTE: Thread-safe behavior is not yet implemented. */
-#ifndef SKIPLIST_USE_LOCK
-#define SKIPLIST_USE_LOCK 0
-#endif
-
 /* Type for skiplist count, can be made smaller to save space
  * (depending on platforms' alignment restrictions).
  * Must be signed; negative counts are used to indicate errors. */
