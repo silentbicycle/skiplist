@@ -26,11 +26,7 @@
 struct skiplist {
     size_t count;
     struct skiplist_node *head;
-
-#ifndef SKIPLIST_CMP_CB
     skiplist_cmp_cb *cmp;
-#endif
-
 };
 
 struct skiplist_node {
@@ -50,7 +46,8 @@ static struct skiplist_node SENTINEL = { 0, NULL, NULL };
 static struct skiplist_node *
 node_alloc(uint8_t height, void *key, void *value);
 
-struct skiplist *skiplist_new(SKIPLIST_NEW_ARGS) {
+struct skiplist *skiplist_new(skiplist_cmp_cb *cmp) {
+    if (cmp == NULL) { return NULL; }
     struct skiplist *sl = SKIPLIST_MALLOC(sizeof(*sl));
     if (sl) {
         sl->count = 0;
@@ -61,8 +58,7 @@ struct skiplist *skiplist_new(SKIPLIST_NEW_ARGS) {
             return NULL;
         }
         sl->head = head;
-
-        SKIPLIST_CMP_INIT();    /* set *cmp, if not hardcoded */
+        sl->cmp = cmp;
     }
     return sl;
 }
@@ -132,7 +128,7 @@ static void init_prevs(struct skiplist *sl, void *key,
         assert(cur->h <= SKIPLIST_MAX_HEIGHT);
         next = cur->next[lvl];
         LOG2("next is %p, level is %d\n", next, lvl);
-        res = IS_SENTINEL(next) ? 1 : SKIPLIST_CMP(next->k, key);
+        res = IS_SENTINEL(next) ? 1 : sl->cmp(next->k, key);
         LOG2("res is %d\n", res);
         if (res < 0) {              /* < - advance. */
             cur = next;
@@ -175,7 +171,7 @@ static bool add_or_set(struct skiplist *sl, int try_replace,
     if (try_replace) {
         struct skiplist_node *next = prevs[0]->next[0];
         if (!IS_SENTINEL(next)) {
-            int res = SKIPLIST_CMP(next->k, key);
+            int res = sl->cmp(next->k, key);
             if (res == 0) { /* key exists, replace value */
                 if (old) { *old = next->v; }
                 next->v = value;
@@ -226,7 +222,7 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
     init_prevs(sl, key, head, cur_height, prevs);
 
     struct skiplist_node *doomed = prevs[0]->next[0];
-    if (IS_SENTINEL(doomed) || 0 != SKIPLIST_CMP(doomed->k, key)) {
+    if (IS_SENTINEL(doomed) || 0 != sl->cmp(doomed->k, key)) {
         return false;           /* not found */
     }
 
@@ -273,7 +269,7 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
             sl->count--;
             node_free(doomed);
             res = IS_SENTINEL(next)
-              ? -1 : SKIPLIST_CMP(next->k, key);
+              ? -1 : sl->cmp(next->k, key);
             doomed = next;
         } while (res == 0);
 
@@ -307,7 +303,7 @@ static struct skiplist_node *get_first_eq_node(struct skiplist *sl, void *key) {
         next = cur->next[lvl];
 
         assert(next->h <= SKIPLIST_MAX_HEIGHT);
-        int res = IS_SENTINEL(next) ? 1 : SKIPLIST_CMP(next->k, key);
+        int res = IS_SENTINEL(next) ? 1 : sl->cmp(next->k, key);
         if (res < 0) {  /* next->key < key, advance */
             cur = next;
         } else if (res >= 0) { /* next->key >= key, descend */
@@ -491,10 +487,10 @@ void skiplist_debug(struct skiplist *sl, FILE *f,
     int max_lvl = sl->head->h;
     int counts[max_lvl];
     DO(max_lvl, counts[i] = 0);
-    if (f) { fprintf(f, "max level is %d\n", max_lvl); }
-#ifndef SKIPLIST_CMP_CB
-    if (f) { fprintf(f, "cmp cb is %p\n", sl->cmp); }
-#endif
+    if (f) {
+        fprintf(f, "max level is %d\n", max_lvl);
+        fprintf(f, "cmp cb is %p\n", sl->cmp);
+    }
     struct skiplist_node *head = sl->head;
     assert(head);
     if (f) {

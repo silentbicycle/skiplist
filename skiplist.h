@@ -42,16 +42,9 @@ struct skiplist;
  * equal, and greater-than, respectively. */
 typedef int skiplist_cmp_cb(void *key_a, void *key_b);
 
-#ifdef SKIPLIST_CMP_CB
-#define SKIPLIST_NEW_ARGS void
-#else
-#define SKIPLIST_NEW_ARGS skiplist_cmp_cb *cmp
-#endif
-
 /* Create a new skiplist, returns NULL on error.
- * May or may not take a skiplist_cmp_cb function pointer,
- * depending on whether SKIPLIST_CMP_CB is defined. */
-struct skiplist *skiplist_new(SKIPLIST_NEW_ARGS);
+ * A comparison callback is required. */
+struct skiplist *skiplist_new(skiplist_cmp_cb *cmp);
 
 /* Set the random seed used when randomly constructing skiplists. */
 void skiplist_set_seed(unsigned seed);

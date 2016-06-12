@@ -19,14 +19,4 @@
 #define DO(count, block)                                \
         { for(int i=0; i<count; i++) { block; } }
 
-#ifdef SKIPLIST_CMP_CB
-#define SKIPLIST_CMP(a, b) SKIPLIST_CMP_CB(a, b)
-#define SKIPLIST_CMP_INIT() /* No-op */
-#define SKIPLIST_NEW_ARGS /* none */
-#else
-#define SKIPLIST_CMP(a, b) sl->cmp(a, b)
-#define SKIPLIST_CMP_INIT() { assert(cmp); sl->cmp = cmp; }
-#define SKIPLIST_NEW_ARGS skiplist_cmp_cb *cmp
-#endif
-
 #endif

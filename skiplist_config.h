@@ -33,12 +33,6 @@
 #define SKIPLIST_FREE(p, sz) free(p)
 #endif
 
-/* Allow the comparison callback to be hardcoded at compile time. */
-/* #define SKIPLIST_CMP_CB skiplist_cmp_function */
-
-/* Allow the free callback to be hardcoded at compile time. NYI. */
-/* #define SKIPLIST_FREE_CB skiplist_free_function */
-
 /* Define a custom random-height-calculation function.
  * 
  * To keep expected skiplist behavior, the probability of a
