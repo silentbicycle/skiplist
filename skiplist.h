@@ -38,13 +38,25 @@ extern "C" {
 /* Opaque skiplist type. */
 struct skiplist;
 
-/* Comparison function, should return <0, 0, or >0 for less-than,
+/* Memory allocation callback.
+ *
+ * When called as (NULL, 0, SIZE, udata), should be equivalent to
+ * `malloc(SIZE)`. When called as (P, OLD_SIZE, 0, udata), should be
+ * equivalent to `free(P)`, and return NULL. realloc-like behavior is
+ * not currently used. */
+typedef void *skiplist_alloc_cb(void *p,
+    size_t osize, size_t nsize, void *udata);
+
+/* Comparison callback, should return <0, 0, or >0 for less-than,
  * equal, and greater-than, respectively. */
 typedef int skiplist_cmp_cb(void *key_a, void *key_b);
 
 /* Create a new skiplist, returns NULL on error.
- * A comparison callback is required. */
-struct skiplist *skiplist_new(skiplist_cmp_cb *cmp);
+ * A comparison callback is required.
+ * A memory management callback is optional - if NULL,
+ * malloc & free will be used internally. */
+struct skiplist *skiplist_new(skiplist_cmp_cb *cmp,
+    skiplist_alloc_cb *alloc, void *alloc_udata);
 
 /* Set the random seed used when randomly constructing skiplists. */
 void skiplist_set_seed(unsigned seed);

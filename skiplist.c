@@ -27,6 +27,8 @@ struct skiplist {
     size_t count;
     struct skiplist_node *head;
     skiplist_cmp_cb *cmp;
+    skiplist_alloc_cb *alloc;
+    void *alloc_udata;
 };
 
 struct skiplist_node {
@@ -44,34 +46,45 @@ static struct skiplist_node SENTINEL = { 0, NULL, NULL };
 #define IS_SENTINEL(n) (n == &SENTINEL)
 
 static struct skiplist_node *
-node_alloc(uint8_t height, void *key, void *value);
+node_alloc(struct skiplist *sl, uint8_t height, void *key, void *value);
+static void *def_alloc(void *p,
+    size_t osize, size_t nsize, void *udata);
 
-struct skiplist *skiplist_new(skiplist_cmp_cb *cmp) {
+/* Create a new skiplist, returns NULL on error.
+ * A comparison callback is required.
+ * A memory management callback is optional - if NULL,
+ * malloc & free will be used internally. */
+struct skiplist *skiplist_new(skiplist_cmp_cb *cmp,
+        skiplist_alloc_cb *alloc, void *alloc_udata) {
     if (cmp == NULL) { return NULL; }
-    struct skiplist *sl = SKIPLIST_MALLOC(sizeof(*sl));
+    if (alloc == NULL) { alloc = def_alloc; }
+
+    struct skiplist *sl = alloc(NULL, 0, sizeof(*sl), alloc_udata);
     if (sl) {
         sl->count = 0;
+        sl->cmp = cmp;
+        sl->alloc = alloc;
+        sl->alloc_udata = alloc_udata;
 
-        struct skiplist_node *head = node_alloc(1, &SENTINEL, &SENTINEL);
+        struct skiplist_node *head = node_alloc(sl, 1, &SENTINEL, &SENTINEL);
         if (head == NULL) {
-            SKIPLIST_FREE(sl, sizeof(*sl));
+            alloc(sl, sizeof(*sl), 0, alloc_udata);
             return NULL;
         }
         sl->head = head;
-        sl->cmp = cmp;
     }
     return sl;
 }
 
 /* Allocate a node. The forward pointers are initialized to &SENTINEL.
  * Returns NULL on failure. */
-static struct skiplist_node *node_alloc(uint8_t height,
-        void *key, void *value) {
+static struct skiplist_node *node_alloc(struct skiplist *sl,
+        uint8_t height, void *key, void *value) {
     assert(height > 0);
     assert(height <= SKIPLIST_MAX_HEIGHT);
     size_t size = sizeof(struct skiplist_node) +
       height * sizeof(struct skiplist_node *);
-    struct skiplist_node *n = SKIPLIST_MALLOC(size);
+    struct skiplist_node *n = sl->alloc(NULL, 0, size, sl->alloc_udata);
     if (n == NULL) { return NULL; }
     n->h = height;
     n->k = key;
@@ -81,10 +94,25 @@ static struct skiplist_node *node_alloc(uint8_t height,
     return n;
 }
 
+static void *def_alloc(void *p,
+        size_t osize, size_t nsize, void *udata) {
+    (void)udata;
+    (void)osize;
+    if (p) {
+        assert(nsize == 0);
+        free(p);
+        return NULL;
+    } else {
+        assert(osize == 0);
+        return malloc(nsize);
+    }
+}
+
+
 /* Free a node. If necessary, everything it references should be
  * freed by the calling function. */
-static void node_free(struct skiplist_node *n) {
-    SKIPLIST_FREE(n, sizeof(*n) + n->h * sizeof(n));
+static void node_free(struct skiplist *sl, struct skiplist_node *n) {
+    sl->alloc(n, sizeof(*n) + n->h * sizeof(n), 0, sl->alloc_udata);
 }
 
 /* Set the random seed used when randomly constructing skiplists. */
@@ -142,7 +170,7 @@ static void init_prevs(struct skiplist *sl, void *key,
 static bool grow_head(struct skiplist *sl, struct skiplist_node *nn) {
     struct skiplist_node *old_head = sl->head;
     LOG2("growing head from %d to %d\n", old_head->h, nn->h);
-    struct skiplist_node *new_head = node_alloc(nn->h,
+    struct skiplist_node *new_head = node_alloc(sl, nn->h,
         &SENTINEL, &SENTINEL);
     if (new_head == NULL) {
         fprintf(stderr, "alloc fail\n");
@@ -154,7 +182,7 @@ static bool grow_head(struct skiplist *sl, struct skiplist_node *nn) {
         new_head->next[i] = nn;
     }
     sl->head = new_head;
-    node_free(old_head);
+    node_free(sl, old_head);
     return true;
 }
 
@@ -183,7 +211,7 @@ static bool add_or_set(struct skiplist *sl, int try_replace,
     }
 
     uint8_t new_height = SKIPLIST_GEN_HEIGHT();
-    struct skiplist_node *nn = node_alloc(new_height, key, value);
+    struct skiplist_node *nn = node_alloc(sl, new_height, key, value);
     if (nn == NULL) { return false; }
 
     if (new_height > cur_height) {
@@ -229,7 +257,7 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
     if (cb == NULL) {           /* delete one w/ key */
         DO(doomed->h, prevs[i]->next[i]=doomed->next[i]);
         if (old) { *old = doomed->v; }
-        node_free(doomed);
+        node_free(sl, doomed);
         sl->count--;
         return true;
     } else {                    /* delete all w/ key */
@@ -267,7 +295,7 @@ static bool delete_one_or_all(struct skiplist *sl, void *key,
 
             cb(key, doomed->v, udata);
             sl->count--;
-            node_free(doomed);
+            node_free(sl, doomed);
             res = IS_SENTINEL(next)
               ? -1 : sl->cmp(next->k, key);
             doomed = next;
@@ -377,7 +405,7 @@ bool skiplist_pop_first(struct skiplist *sl, void **key, void **value) {
     sl->count--;
 
     DO(height, head->next[i] = first->next[i]);
-    node_free(first);
+    node_free(sl, first);
     return true;
 }
 
@@ -417,7 +445,7 @@ bool skiplist_pop_last(struct skiplist *sl, void **key, void **value) {
     sl->count--;
 
     assert(!IS_SENTINEL(cur));
-    node_free(cur);
+    node_free(sl, cur);
     return true;
 }
 
@@ -465,7 +493,7 @@ size_t skiplist_clear(struct skiplist *sl,
         struct skiplist_node *doomed = cur;
         if (cb) { cb(doomed->k, doomed->v, udata); }
         cur = doomed->next[0];
-        node_free(doomed);
+        node_free(sl, doomed);
         ct++;
     }
     DO(sl->head->h, sl->head->next[i] = &SENTINEL);
@@ -476,8 +504,8 @@ size_t skiplist_free(struct skiplist *sl,
         skiplist_free_cb *cb, void *udata) {
     assert(sl);
     size_t ct = skiplist_clear(sl, cb, udata);
-    node_free(sl->head);
-    SKIPLIST_FREE(sl, sizeof(*sl));
+    node_free(sl, sl->head);
+    sl->alloc(sl, sizeof(*sl), 0, sl->alloc_udata);
     return ct;
 }
 

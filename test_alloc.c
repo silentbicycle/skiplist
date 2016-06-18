@@ -1,27 +1,38 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
-void *test_malloc(size_t sz);
-void test_free(void *p, size_t sz);
-void test_reset(void);
-int test_check_for_leaks(void);
+#include "test_alloc.h"
 
 long allocated = 0;
 
 #define TRACE_ALLOC 0
 
+void *test_alloc(void *p, size_t osize, size_t nsize, void *udata) {
+    (void)udata;
+    if (p) {
+        assert(nsize == 0);
+        if (TRACE_ALLOC) { fprintf(stderr, "free %zd bytes\n", osize); }
+        allocated -= osize;
+        free(p);
+        return NULL;
+    } else {
+        if (TRACE_ALLOC) { fprintf(stderr, "alloc %zd bytes\n", nsize); }
+        assert(osize == 0);
+        p = malloc(nsize);
+        allocated += nsize;
+        return p;
+    }
+}
+
 void *test_malloc(size_t sz) {
-    if (TRACE_ALLOC) fprintf(stderr, "alloc %zd bytes\n", sz);
-    void *p = malloc(sz);
-    allocated += sz;
-    return p;
+    return test_alloc(NULL, 0, sz, NULL);
 }
 
 void test_free(void *p, size_t sz) {
-    if (TRACE_ALLOC) fprintf(stderr, "free %zd bytes\n", sz);
-    allocated -= sz;
-    free(p);
+    (void)test_alloc(p, sz, 0, NULL);
 }
+
 
 void test_reset(void) { allocated = 0; }
 

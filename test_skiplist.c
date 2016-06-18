@@ -49,7 +49,7 @@ const char *wordlist[] = {
 /*********/
 
 TEST init(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
     ASSERT(sl);
     skiplist_free(sl, NULL, NULL);
     PASS();
@@ -57,7 +57,8 @@ TEST init(void) {
 
 /* Adding one word should succeed. */
 TEST add_one_word(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_add(sl, "foo", "bar"));
     skiplist_free(sl, NULL, NULL);
     PASS();
@@ -112,7 +113,8 @@ static void print_intptr_cb(FILE *f, void *k, void *v, void *ud) {
 /* Add a bunch of words to a skiplist and check that the count
  * remains correct. */
 TEST fill_with_words(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     char **w = NULL;
     size_t ct = 0;
     for (w = (char **)wordlist; *w; w++) {
@@ -156,7 +158,8 @@ sl_count_and_check_sorted_cb(void *k, void *v, void *udata) {
 
 /* Add words and check that they are automatically sorted during insertion. */
 TEST fill_with_words_check_sorted(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     char **w = NULL;
     size_t ct = 0;
     for (w = (char **)wordlist; *w; w++) {
@@ -207,7 +210,8 @@ sl_check_and_terminate_early_cb(void *k, void *v, void *udata) {
 
 /* Same as previous test, but scan from the beginning to "onion". */
 TEST fill_with_words_terminate_early(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     char **w = NULL;
     size_t ct = 0;
     for (w = (char **)wordlist; *w; w++) {
@@ -237,7 +241,8 @@ TEST fill_with_words_terminate_early(void) {
  * first occurrence of "onion". Tests that it counts from the _first_;
  * "onion" appears multiple times as a key. */
 TEST fill_with_words_count_from_onion(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     char **w = NULL;
     size_t ct = 0;
     for (w = (char **)wordlist; *w; w++) {
@@ -270,7 +275,8 @@ TEST fill_with_words_count_from_onion(void) {
 
 /* Test membership for newly added words. */
 TEST add_and_member(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_empty(sl) == 1);
     ASSERT(skiplist_count(sl) == 0);
     ASSERT(skiplist_member(sl, "foo") == 0);
@@ -286,7 +292,8 @@ TEST add_and_member(void) {
 
 /* Add word, replace word, get old value. */
 TEST add_and_set(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_count(sl) == 0);
     ASSERT(skiplist_member(sl, "foo") == 0);
 
@@ -317,7 +324,8 @@ TEST add_and_set(void) {
 
 /* Set a word in an empty skiplist, check invariants. */
 TEST set(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_count(sl) == 0);
     ASSERT(skiplist_member(sl, "foo") == 0);
 
@@ -338,7 +346,8 @@ TEST set(void) {
 
 /* Set and delete in an empty skiplist, check invariants. */
 TEST trivial_delete(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_count(sl) == 0);
     ASSERT(skiplist_member(sl, "foo") == 0);
 
@@ -360,7 +369,8 @@ TEST trivial_delete(void) {
 /* Check that deletion of a nonexistent key does not affect
  * the skiplist. */
 TEST trivial_delete_not_present(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_count(sl) == 0);
     ASSERT(skiplist_member(sl, "foo") == 0);
 
@@ -390,7 +400,7 @@ static void inc_cb(void *key, void *value, void *udata)
 /* Add several numeric values, delete some of them, check that
  * everything stays correct. */
 TEST delete_many_individually(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     ASSERT(sl);
     const size_t limit = 100000;
     for (size_t i = 0; i < limit; i++) {
@@ -421,7 +431,8 @@ TEST delete_many_individually(void) {
 
 /* Add keys, deleet them all. */
 TEST trivial_delete_all(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_add(sl, "foo", "bar"));
     ASSERT(skiplist_member(sl, "foo") == 1);
     ASSERT(skiplist_count(sl) == 1);
@@ -452,7 +463,7 @@ TEST trivial_delete_all(void) {
 /* Add a bunch of numeric keys (with duplicates), delete_all of
  * the duplicated key, which is at the head of the skiplist. */
 TEST delete_all_first(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     const intptr_t limit = 100;
     intptr_t key = 0;
 
@@ -490,7 +501,7 @@ TEST delete_all_first(void) {
 /* Add a bunch of numeric keys (with duplicates), delete_all of
  * the duplicated key, which is at the middle of the skiplist. */
 TEST delete_all_middle(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     const intptr_t limit = 100000;
     intptr_t key = (limit / 2);
     for (intptr_t i = 0; i < limit; i++) {
@@ -526,7 +537,7 @@ TEST delete_all_middle(void) {
 /* Add a bunch of numeric keys (with duplicates), delete_all of
  * the duplicated key, which is at the end of the skiplist. */
 TEST delete_all_end(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     const intptr_t limit = 100000;
     for (intptr_t i = 0; i < limit; i++) {
         ASSERT(skiplist_add(sl, (void *) i, (void *) 1));
@@ -560,7 +571,8 @@ TEST delete_all_end(void) {
 
 /* Get the first value. */
 TEST first(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_add(sl, "foo", "bar"));
     ASSERT(skiplist_member(sl, "foo") == 1);
     ASSERT(skiplist_count(sl) == 1);
@@ -583,7 +595,8 @@ TEST first(void) {
 
 /* Get the last value. */
 TEST last(void) {
-    struct skiplist *sl = skiplist_new(sl_strcmp); ASSERT(sl);
+    struct skiplist *sl = skiplist_new(sl_strcmp, test_alloc, NULL);
+    ASSERT(sl);
     ASSERT(skiplist_add(sl, "foo", "bar"));
     ASSERT(skiplist_member(sl, "foo") == 1);
     ASSERT(skiplist_count(sl) == 1);
@@ -625,7 +638,7 @@ static void clear_cb(void *key, void *value, void *udata)
 
 /* Clear the skiplist. */
 TEST clear(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     ASSERT(sl);
     const int limit = 1000000;
     for (long i = 0; i < limit; i++) {
@@ -650,7 +663,7 @@ TEST clear(void) {
 
 /* Clear the skiplist with the free callback. */
 TEST free_clear(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     ASSERT(sl);
     const int limit = 10000;
     for (long i = 0; i < limit; i++) {
@@ -675,7 +688,7 @@ TEST free_clear(void) {
 /* Add numeric pairs, then pepeatedly pop the first key/value pair
  * until empty, and check invariants. */
 TEST pop_first(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     ASSERT(sl);
     const size_t limit = 1000;
     for (size_t i = 0; i < limit; i++) {
@@ -710,7 +723,7 @@ TEST pop_first(void) {
 /* Add numeric pairs, then pepeatedly pop the last key/value pair
  * until empty, and check invariants. */
 TEST pop_last(void) {
-    struct skiplist *sl = skiplist_new(sl_longcmp);
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
     ASSERT(sl);
     const size_t limit = 1000;
     for (size_t i = 0; i < limit; i++) {

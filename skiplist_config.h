@@ -25,14 +25,6 @@
 #define SKIPLIST_DEBUG 0
 #endif
 
-/* Allow swapping out the memory allocation functions. */
-#ifndef SKIPLIST_MALLOC
-#define SKIPLIST_MALLOC(sz) malloc(sz)
-#define SKIPLIST_REALLOC(p, sz) realloc(p, sz)
-/* Note - has correct size when freeing, though free does not use it. */
-#define SKIPLIST_FREE(p, sz) free(p)
-#endif
-
 /* Define a custom random-height-calculation function.
  * 
  * To keep expected skiplist behavior, the probability of a

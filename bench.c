@@ -49,7 +49,7 @@ static int intptr_cmp(void *v1, void *v2) {
 
 /* Measure insertions. */
 static void ins(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -63,7 +63,7 @@ static void ins(void) {
 
 /* Measure getting existing values (successful lookup). */
 static void get(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -85,7 +85,7 @@ static void get(void) {
 
 /* Measure getting _nonexistent_ values (lookup failure). */
 static void get_nonexistent(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -107,7 +107,7 @@ static void get_nonexistent(void) {
 
 /* Measure getting existing values (successful lookup). */
 static void ins_and_get(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -129,7 +129,7 @@ static void ins_and_get(void) {
 
 /* Measure getting _nonexistent_ values (lookup failure). */
 static void ins_and_get_nonexistent(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -150,7 +150,7 @@ static void ins_and_get_nonexistent(void) {
 }
 
 static void ins_and_count(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -164,7 +164,7 @@ static void ins_and_count(void) {
 }
 
 static void set(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -178,7 +178,7 @@ static void set(void) {
 }
 
 static void set_and_get(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -200,7 +200,7 @@ static void set_and_get(void) {
 }
 
 static void delete(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -221,7 +221,7 @@ static void delete(void) {
 }
 
 static void ins_and_delete(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -242,7 +242,7 @@ static void ins_and_delete(void) {
 }
 
 static void delete_nonexistent(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -263,7 +263,7 @@ static void delete_nonexistent(void) {
 }
 
 static void ins_and_delete_nonexistent(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -284,7 +284,7 @@ static void ins_and_delete_nonexistent(void) {
 }
 
 static void ins_and_pop_first(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -305,7 +305,7 @@ static void ins_and_pop_first(void) {
 }
 
 static void ins_and_pop_last(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -326,7 +326,7 @@ static void ins_and_pop_last(void) {
 }
 
 static void pop_first(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -347,7 +347,7 @@ static void pop_first(void) {
 }
 
 static void pop_last(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -369,7 +369,7 @@ static void pop_last(void) {
 
 static void ins_and_member(void) {
     TIME(pre);
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -388,7 +388,7 @@ static void ins_and_member(void) {
 }
 
 static void member(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -408,7 +408,7 @@ static void member(void) {
 }
 
 static void ins_and_clear(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -430,7 +430,7 @@ static enum skiplist_iter_res sum_cb(void *k, void *v, void *ud) {
 }
 
 static void sum(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     for (intptr_t i=0; i < lim; i++) {
         skiplist_add(sl, (void *) i, (void *) i);
@@ -447,7 +447,7 @@ static void sum(void) {
 }
 
 static void ins_and_sum(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
@@ -464,7 +464,7 @@ static void ins_and_sum(void) {
 }
 
 static void ins_and_sum_partway(void) {
-    skiplist *sl = skiplist_new(intptr_cmp);
+    skiplist *sl = skiplist_new(intptr_cmp, NULL, NULL);
 
     TIME(pre);
     for (intptr_t i=0; i < lim; i++) {
