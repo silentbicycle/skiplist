@@ -1,6 +1,6 @@
 # skiplist Changes By Release
 
-## v. 0.9.0 - Not yet released
+## v. 0.9.0 - 2016-06-18
 
 ### API Changes
 
