@@ -808,7 +808,7 @@ TEST iter_from_missing_key(void) {
         .exp_first = 10,
         .exp_last = limit / 2,
     };
-    skiplist_iter_from(sl, (void *)env.exp_first - 1, iter_missing_cb, (void *)&env);
+    skiplist_iter_from(sl, (void *)(env.exp_first - 1), iter_missing_cb, (void *)&env);
 
     ASSERT(env.first_seen);
     ASSERT(env.last_seen);
