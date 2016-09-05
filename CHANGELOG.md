@@ -1,5 +1,16 @@
 # skiplist Changes By Release
 
+## v. 0.10.0 - Not yet released
+
+### API Changes
+
+Changed `skiplist_iter_from` behavior when the requested
+starting key is not present: now, it starts iterating
+from the first key >= the requested key. Previously,
+it would just halt iteration immediately when the
+key was not found.
+
+
 ## v. 0.9.0 - 2016-06-18
 
 ### API Changes

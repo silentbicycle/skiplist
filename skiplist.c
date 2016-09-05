@@ -319,7 +319,8 @@ void skiplist_delete_all(struct skiplist *sl, void *key,
     (void) delete_one_or_all(sl, key, cb, udata, NULL);
 }
 
-static struct skiplist_node *get_first_eq_node(struct skiplist *sl, void *key) {
+static struct skiplist_node *get_first_eq_node(struct skiplist *sl,
+        void *key, bool exact) {
     assert(sl);
     struct skiplist_node *head = sl->head;
     int height = head->h;
@@ -336,8 +337,9 @@ static struct skiplist_node *get_first_eq_node(struct skiplist *sl, void *key) {
             cur = next;
         } else if (res >= 0) { /* next->key >= key, descend */
             /* Descend when == to make sure it's the FIRST match. */
+
             if (lvl == 0) {
-                if (res == 0) { return next; } /* found */
+                if (res == 0 || exact == false) { return next; } /* found */
                 return NULL;               /* not found */
             }
             lvl--;
@@ -348,7 +350,7 @@ static struct skiplist_node *get_first_eq_node(struct skiplist *sl, void *key) {
 }
 
 bool skiplist_get(struct skiplist *sl, void *key, void **value) {
-    struct skiplist_node *n = get_first_eq_node(sl, key);
+    struct skiplist_node *n = get_first_eq_node(sl, key, true);
     if (n) {
         if (value) { *value = n->v; }
         return true;
@@ -478,7 +480,7 @@ void skiplist_iter_from(struct skiplist *sl, void *key,
         skiplist_iter_cb *cb, void *udata) {
     assert(sl);
     assert(cb);
-    struct skiplist_node *cur = get_first_eq_node(sl, key);
+    struct skiplist_node *cur = get_first_eq_node(sl, key, false);
     LOG2("first node is %p\n", (void *)cur);
     if (cur == NULL) { return; }
     walk_and_apply(cur, cb, udata);

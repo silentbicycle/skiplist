@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-/* 0.9.0 */
+/* 0.9.0 dev + skiplist_iter_from change */
 #define SKIPLIST_VERSION_MAJOR 0
 #define SKIPLIST_VERSION_MINOR 9
 #define SKIPLIST_VERSION_PATCH 0
@@ -150,7 +150,8 @@ skiplist_iter_cb(void *key, void *value, void *udata);
 void skiplist_iter(struct skiplist *sl,
     skiplist_iter_cb *cb, void *udata);
 
-/* Iterate over the skiplist, beginning at KEY. */
+/* Iterate over the skiplist, beginning at the first
+ * key whose value is >= KEY. */
 void skiplist_iter_from(struct skiplist *sl, void *key,
     skiplist_iter_cb *cb, void *udata);
 

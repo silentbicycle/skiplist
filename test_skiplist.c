@@ -720,7 +720,7 @@ TEST pop_first(void) {
     PASS();
 }
 
-/* Add numeric pairs, then pepeatedly pop the last key/value pair
+/* Add numeric pairs, then repeatedly pop the last key/value pair
  * until empty, and check invariants. */
 TEST pop_last(void) {
     struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
@@ -759,6 +759,64 @@ TEST pop_last(void) {
     PASS();
 }
 
+struct iter_gaps_env {
+    bool first_seen;
+    long exp_first;
+    bool last_seen;
+    long exp_last;
+};
+
+static enum skiplist_iter_res
+iter_missing_cb(void *key, void *value, void *udata) {
+    long k = (long)key;
+    struct iter_gaps_env *env = (struct iter_gaps_env *)udata;
+    assert(env);
+    assert(value == NULL);
+
+    if (!env->first_seen) {
+        if (k != env->exp_first) {
+            return SKIPLIST_ITER_HALT;
+        } else {
+            env->first_seen = true;
+            return SKIPLIST_ITER_CONTINUE;
+        }
+    } else {
+        if (k == env->exp_last) {
+            env->last_seen = true;
+            return SKIPLIST_ITER_HALT;
+        } else if (k < env->exp_last) {
+            return SKIPLIST_ITER_CONTINUE;
+        } else {
+            return SKIPLIST_ITER_HALT;
+        }
+    }
+}
+
+/* Confirm we can call skiplist_iter_from with a key that doesn't exist
+ * -- just start from the first key after it. */
+TEST iter_from_missing_key(void) {
+    struct skiplist *sl = skiplist_new(sl_longcmp, test_alloc, NULL);
+    ASSERT(sl);
+
+    const long limit = 1000;
+    for (long i = 0; i < limit; i++) {
+        /* Double the key, so there will be gaps */
+        ASSERT(skiplist_add(sl, (void *) (2 * i), NULL));
+    }
+
+    struct iter_gaps_env env = {
+        .exp_first = 10,
+        .exp_last = limit / 2,
+    };
+    skiplist_iter_from(sl, (void *)env.exp_first - 1, iter_missing_cb, (void *)&env);
+
+    ASSERT(env.first_seen);
+    ASSERT(env.last_seen);
+
+    skiplist_free(sl, NULL, NULL);
+    PASS();
+}
+
 
 /*********/
 /* Suite */
@@ -793,6 +851,7 @@ SUITE(suite) {
     RUN_TEST(free_clear);
     RUN_TEST(pop_first);
     RUN_TEST(pop_last);
+    RUN_TEST(iter_from_missing_key);
 }
 
 int main(int argc, char **argv) {
